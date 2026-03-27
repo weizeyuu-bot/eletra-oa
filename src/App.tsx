@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   LayoutDashboard,
   Grid,
@@ -79,6 +79,94 @@ type Notice = {
   isRead?: boolean;
 };
 
+type WorkflowStatus = '待审批' | '已通过' | '已驳回' | '待阅' | '草稿';
+
+type WorkflowTab = 'pending' | 'submitted' | 'processed';
+
+type TravelRequestDetail = {
+  name: string;
+  costCenter: string;
+  reason: string;
+  description: string;
+  firstTravel: string;
+  rg: string;
+  cpf: string;
+  birthDate: string;
+  segments: { from: string; to: string; dateTime: string; transport: string }[];
+  needBaggage: boolean;
+  baggageQty: number;
+  needHotel: boolean;
+  hotelCity: string;
+  hotelName: string;
+  checkIn: string;
+  checkOut: string;
+  hotelCost: string;
+  needAdvance: boolean;
+  currency: string;
+  amount: string;
+  bank: string;
+  agency: string;
+  account: string;
+  pix: string;
+  needVehicle: boolean;
+  driver: string;
+  coDriver: string;
+  pickupLocation: string;
+  pickupTime: string;
+  returnLocation: string;
+  returnTime: string;
+};
+
+type WorkflowRequest = {
+  id: string;
+  type: string;
+  applicant: string;
+  dept: string;
+  createTime: string;
+  status: WorkflowStatus;
+  currentNode: string;
+  approver: string;
+  summary: string;
+  travelDetail?: TravelRequestDetail;
+};
+
+const createDefaultTravelDetail = (applicant: string, dept: string): TravelRequestDetail => ({
+  name: applicant,
+  costCenter: dept || 'FISCAL ELETRA',
+  reason: '业务洽谈 (Negócios)',
+  description: 'Alinhar processos operacionais, padronizar rotinas, fortalecer a comunicação entre as equipes e garantir a uniformidade na execução das atividades.',
+  firstTravel: '否 (NÃO)',
+  rg: '1815674-6',
+  cpf: '832.776.332-68',
+  birthDate: '1986/01/25',
+  segments: [
+    { from: 'MANAUS', to: 'CEARA', dateTime: '2026-03-08 08:25', transport: '飞机 (AÉREO)' },
+    { from: 'CEARA', to: 'MANAUS', dateTime: '2026-03-20 14:20', transport: '飞机 (AÉREO)' },
+  ],
+  needBaggage: true,
+  baggageQty: 2,
+  needHotel: true,
+  hotelCity: '-',
+  hotelName: '-',
+  checkIn: '-',
+  checkOut: '-',
+  hotelCost: '-',
+  needAdvance: true,
+  currency: 'BRL',
+  amount: '1,320.00',
+  bank: 'Itaú Unibanco',
+  agency: '9651',
+  account: '03756-7',
+  pix: '83277633268',
+  needVehicle: true,
+  driver: applicant,
+  coDriver: '-',
+  pickupLocation: '-',
+  pickupTime: '-',
+  returnLocation: '-',
+  returnTime: '-',
+});
+
 type Page = 'workbench' | 'apps' | 'apps-hr' | 'apps-finance' | 'apps-supply' | 'apps-hr-travel' | 'apps-hr-leave' | 'apps-hr-training' | 'apps-hr-stamp' | 'apps-finance-reimbursement' | 'apps-finance-payment' | 'apps-finance-invoice' | 'apps-supply-procurement' | 'apps-supply-requisition' | 'contacts' | 'chat' | 'approvals' | 'travel-request' | 'reports' | 'reports-hr' | 'reports-finance' | 'reports-supply' | 'reports-hr-travel' | 'reports-hr-attendance' | 'reports-finance-expense' | 'reports-supply-procurement' | 'workflow-config' | 'sys-mgmt' | 'sys-user' | 'sys-role' | 'sys-menu' | 'sys-dept' | 'sys-post' | 'sys-dict' | 'sys-notice';
 
 // --- Mock Data ---
@@ -86,6 +174,54 @@ const INITIAL_NOTICES: Notice[] = [
   { id: 1, title: '关于2026年春节放假安排的通知', type: '通知', status: true, creator: 'admin', createTime: '2026-01-15 10:00:00', content: '新版本内容' },
   { id: 2, title: '系统维护升级公告', type: '公告', status: true, creator: 'admin', createTime: '2026-02-20 18:00:00', content: '系统维护升级公告内容' },
   { id: 3, title: '新员工入职培训指南', type: '通知', status: false, creator: 'admin', createTime: '2026-03-01 09:00:00', content: '新员工入职培训指南内容' },
+];
+
+const INITIAL_WORKFLOW_REQUESTS: WorkflowRequest[] = [
+  {
+    id: 'TR20260327001',
+    type: '出差申请',
+    applicant: '张三',
+    dept: '市场部',
+    createTime: '2026-03-27 09:20:00',
+    status: '待审批',
+    currentNode: '财务审批',
+    approver: '李明',
+    summary: '前往圣保罗拜访客户并进行业务洽谈',
+    travelDetail: createDefaultTravelDetail('张三', '市场部'),
+  },
+  {
+    id: 'SE20260326003',
+    type: '用印申请',
+    applicant: '王五',
+    dept: '行政部',
+    createTime: '2026-03-26 15:30:00',
+    status: '待审批',
+    currentNode: '行政审批',
+    approver: '赵六',
+    summary: '供应商合同文件盖章',
+  },
+  {
+    id: 'RB20260325008',
+    type: '报销申请',
+    applicant: '管理员',
+    dept: '研发部',
+    createTime: '2026-03-25 11:40:00',
+    status: '已通过',
+    currentNode: '归档',
+    approver: '李明',
+    summary: '差旅报销 1320 BRL',
+  },
+  {
+    id: 'PA20260324002',
+    type: '付款申请',
+    applicant: '李四',
+    dept: '财务部',
+    createTime: '2026-03-24 13:10:00',
+    status: '已驳回',
+    currentNode: '财务复核',
+    approver: '管理员',
+    summary: '供应商货款支付申请',
+  },
 ];
 
 const ORG_STRUCTURE = [
@@ -112,6 +248,7 @@ const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePag
 
   const menuItems = [
     { id: 'workbench', icon: LayoutDashboard, label: '门户首页' },
+    { id: 'approvals', icon: ShieldCheck, label: '流程待办' },
     { 
       id: 'apps', 
       icon: Grid, 
@@ -182,7 +319,6 @@ const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePag
         },
       ]
     },
-    { id: 'approvals', icon: ShieldCheck, label: '审批组' },
     { 
       id: 'sys', 
       icon: Settings2, 
@@ -368,20 +504,30 @@ const Header = ({ user, onLogout }: { user: any; onLogout: () => void }) => (
 const Workbench = ({ 
   onOpenForm, 
   onOpenApps, 
+  onOpenApprovals,
   setActivePage, 
   notices, 
   onMarkAsRead, 
   onOpenNotice,
-  currentUser
+  currentUser,
+  workflowRequests,
 }: { 
   onOpenForm: () => void; 
   onOpenApps: () => void; 
+  onOpenApprovals: (tab: WorkflowTab) => void;
   setActivePage: (p: Page) => void; 
   notices: Notice[]; 
   onMarkAsRead: (id: number) => void; 
   onOpenNotice: (notice: Notice) => void;
   currentUser: any;
+  workflowRequests: WorkflowRequest[];
 }) => {
+  const currentDisplayName = currentUser?.nickname || currentUser?.username || '管理员';
+  const pendingCount = workflowRequests.filter(item => item.status === '待审批').length;
+  const draftCount = workflowRequests.filter(item => item.status === '草稿').length;
+  const unreadCount = workflowRequests.filter(item => item.status === '待阅').length;
+  const submittedCount = workflowRequests.filter(item => item.applicant === currentDisplayName).length;
+
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
@@ -451,12 +597,12 @@ const Workbench = ({
             </div>
             <div className="grid grid-cols-4 gap-4">
               {[
-                { label: '待审批', count: 3, color: 'bg-blue-50 text-blue-600' },
-                { label: '待填写', count: 1, color: 'bg-orange-50 text-orange-600' },
-                { label: '待阅', count: 12, color: 'bg-purple-50 text-purple-600' },
-                { label: '我发起的', count: 5, color: 'bg-green-50 text-green-600' },
+                { label: '待审批', count: pendingCount, color: 'bg-blue-50 text-blue-600', action: () => onOpenApprovals('pending') },
+                { label: '待填写', count: draftCount, color: 'bg-orange-50 text-orange-600', action: onOpenApps },
+                { label: '待阅', count: unreadCount, color: 'bg-purple-50 text-purple-600', action: () => onOpenApprovals('processed') },
+                { label: '我发起的', count: submittedCount, color: 'bg-green-50 text-green-600', action: () => onOpenApprovals('submitted') },
               ].map((task) => (
-                <div key={task.label} className={`p-6 rounded-2xl ${task.color} text-center space-y-2 cursor-pointer hover:scale-105 transition-transform`}>
+                <div key={task.label} onClick={task.action} className={`p-6 rounded-2xl ${task.color} text-center space-y-2 cursor-pointer hover:scale-105 transition-transform`}>
                   <div className="text-3xl font-bold">{task.count}</div>
                   <div className="text-xs opacity-80 font-medium">{task.label}</div>
                 </div>
@@ -471,7 +617,7 @@ const Workbench = ({
                 <ShieldCheck className="w-5 h-5 text-red-500" />
                 <h3 className="font-bold text-gray-800">审批组</h3>
               </div>
-              <button onClick={() => onOpenApps()} className="text-gray-400 text-sm hover:text-blue-600 flex items-center gap-1">
+              <button onClick={() => onOpenApprovals('pending')} className="text-gray-400 text-sm hover:text-blue-600 flex items-center gap-1">
                 管理 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -691,15 +837,99 @@ const AppCenter = ({ setActivePage, categoryFilter }: { setActivePage: (p: Page)
 };
 
 const Chat = () => {
-  const chats = [
+  const [chats, setChats] = useState([
     { id: 1, name: '项目协作群', lastMsg: '王严严：报销单已提交，请查收', time: '14:20', unread: 2, type: 'group', avatar: '项' },
     { id: 2, name: '李明 (财务)', lastMsg: '好的，收到', time: '10:05', unread: 0, type: 'direct', avatar: '李' },
     { id: 3, name: '供应链管理群', lastMsg: '张三：采购申请已通过', time: '昨天', unread: 0, type: 'group', avatar: '供' },
     { id: 4, name: '王五 (行政)', lastMsg: '用印申请已审批', time: '昨天', unread: 1, type: 'direct', avatar: '王' },
-  ];
+  ]);
+
+  const initMessages: Record<number, { sender: string; content: string; self: boolean; time: string; fileUrl?: string; fileName?: string; fileSize?: string }[]> = {
+    1: [
+      { sender: '李明 (财务)', content: '王严严，你提交的报销单我已经收到了，正在审核中。', self: false, time: '14:20' },
+      { sender: '我', content: '好的，辛苦了！如果有问题随时联系我。', self: true, time: '14:21' },
+      { sender: '张三', content: '大家注意，供应链管理群的采购申请流程有更新，请查看最新公告。', self: false, time: '14:22' },
+    ],
+    2: [
+      { sender: '李明 (财务)', content: '好的，收到', self: false, time: '10:05' },
+    ],
+    3: [
+      { sender: '张三', content: '采购申请已通过', self: false, time: '昨天' },
+    ],
+    4: [
+      { sender: '王五 (行政)', content: '用印申请已审批', self: false, time: '昨天' },
+    ],
+  };
 
   const [selectedChat, setSelectedChat] = useState(chats[0]);
   const [message, setMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [chatMessages, setChatMessages] = useState(initMessages);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        emojiPickerRef.current?.contains(e.target as Node) ||
+        emojiButtonRef.current?.contains(e.target as Node)
+      ) return;
+      setShowEmojiPicker(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showEmojiPicker]);
+
+  const EMOJIS = ['😀','😂','🥰','😎','🤔','😅','👍','🙏','🎉','❤️','🔥','✅','💪','🤝','😊','🥳','😢','😡','🤣','💯','👀','⭐','🚀','📌','📎','🗂️','📝','💬','📢','🔔'];
+
+  const insertEmoji = (emoji: string) => {
+    setMessage(prev => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'file' | 'doc') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+    const fileUrl = URL.createObjectURL(file);
+    const sizeKB = (file.size / 1024);
+    const fileSize = sizeKB >= 1024 ? `${(sizeKB/1024).toFixed(1)} MB` : `${sizeKB.toFixed(0)} KB`;
+    setChatMessages(prev => ({
+      ...prev,
+      [selectedChat.id]: [...(prev[selectedChat.id] || []), {
+        sender: '我', content: '', self: true, time,
+        fileUrl, fileName: file.name, fileSize
+      }],
+    }));
+    e.target.value = '';
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
+
+  const handleSend = () => {
+    const text = message.trim();
+    if (!text) return;
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+    setChatMessages(prev => ({
+      ...prev,
+      [selectedChat.id]: [...(prev[selectedChat.id] || []), { sender: '我', content: text, self: true, time }],
+    }));
+    setMessage('');
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   return (
     <div className="flex h-full bg-white overflow-hidden">
@@ -721,17 +951,30 @@ const Chat = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜索聊天或同事..."
               className="w-full bg-gray-50 border-none rounded-xl py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-100 transition-all"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {chats.map((chat) => (
+          {chats.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.lastMsg.toLowerCase().includes(searchQuery.toLowerCase())).map((chat) => (
             <div
               key={chat.id}
-              onClick={() => setSelectedChat(chat)}
+              onClick={() => {
+                setSelectedChat(chat);
+                setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unread: 0 } : c));
+              }}
               className={`p-4 flex items-center gap-3 cursor-pointer transition-colors ${
                 selectedChat.id === chat.id ? 'bg-blue-50/50' : 'hover:bg-gray-50'
               }`}
@@ -787,58 +1030,118 @@ const Chat = () => {
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="flex justify-center">
-            <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">14:20</span>
-          </div>
-          
-          <div className="flex gap-3 max-w-[80%]">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0">李</div>
-            <div className="space-y-1">
-              <div className="text-[10px] text-gray-400 ml-1">李明 (财务)</div>
-              <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm text-sm text-gray-700">
-                王严严，你提交的报销单我已经收到了，正在审核中。
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3 max-w-[80%] ml-auto flex-row-reverse">
-            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600 font-bold text-xs shrink-0">王</div>
-            <div className="space-y-1 text-right">
-              <div className="text-[10px] text-gray-400 mr-1">我</div>
-              <div className="bg-blue-600 p-3 rounded-2xl rounded-tr-none text-white text-sm shadow-sm">
-                好的，辛苦了！如果有问题随时联系我。
-              </div>
-            </div>
-          </div>
-
-          {selectedChat.type === 'group' && (
-            <div className="flex gap-3 max-w-[80%]">
-              <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0">张</div>
-              <div className="space-y-1">
-                <div className="text-[10px] text-gray-400 ml-1">张三</div>
-                <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm text-sm text-gray-700">
-                  大家注意，供应链管理群的采购申请流程有更新，请查看最新公告。
+          {(chatMessages[selectedChat.id] || []).map((msg, idx) => {
+            const isFile = !!msg.fileUrl;
+            const fileCard = isFile ? (
+              <a
+                href={msg.fileUrl}
+                download={msg.fileName}
+                onClick={e => e.stopPropagation()}
+                className="flex items-center gap-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl px-3 py-2.5 transition-colors max-w-[280px] group"
+              >
+                <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                  <Paperclip className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium truncate">{msg.fileName}</div>
+                  <div className="text-[10px] opacity-70 mt-0.5">{msg.fileSize}</div>
+                </div>
+                <Download className="w-4 h-4 opacity-60 group-hover:opacity-100 shrink-0" />
+              </a>
+            ) : null;
+            return msg.self ? (
+              <div key={idx} className="flex gap-3 max-w-[80%] ml-auto flex-row-reverse">
+                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600 font-bold text-xs shrink-0">王</div>
+                <div className="space-y-1 text-right">
+                  <div className="text-[10px] text-gray-400 mr-1">{msg.time}</div>
+                  <div className="bg-blue-600 p-3 rounded-2xl rounded-tr-none text-white text-sm shadow-sm">
+                    {isFile ? fileCard : msg.content}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div key={idx} className="flex gap-3 max-w-[80%]">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0 ${selectedChat.type === 'group' ? 'bg-indigo-500' : 'bg-blue-500'}`}>{msg.sender.slice(0,1)}</div>
+                <div className="space-y-1">
+                  <div className="text-[10px] text-gray-400 ml-1">{msg.sender} &middot; {msg.time}</div>
+                  <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm text-sm text-gray-700">
+                    {isFile ? fileCard : msg.content}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}
         <div className="p-6 bg-white border-t border-gray-100">
+          {/* Emoji Picker */}
+          {showEmojiPicker && (
+            <div ref={emojiPickerRef} className="mb-3 p-3 bg-white border border-gray-100 rounded-2xl shadow-lg flex flex-wrap gap-1.5 max-w-xs">
+              {EMOJIS.map(emoji => (
+                <button
+                  key={emoji}
+                  onClick={() => insertEmoji(emoji)}
+                  className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-lg transition-colors"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Hidden file inputs */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,.pdf,.zip,.rar"
+            className="hidden"
+            onChange={(e) => handleFileSelect(e, 'file')}
+          />
+          <input
+            ref={docInputRef}
+            type="file"
+            accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,.txt,.csv"
+            className="hidden"
+            onChange={(e) => handleFileSelect(e, 'doc')}
+          />
           <div className="flex items-center gap-4 mb-4 text-gray-400">
-            <Smile className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
-            <Paperclip className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
-            <FileText className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
+            <button
+              ref={emojiButtonRef}
+              onClick={() => setShowEmojiPicker(v => !v)}
+              title="表情"
+              className={`p-1 rounded-lg transition-colors hover:text-blue-600 ${showEmojiPicker ? 'text-blue-600 bg-blue-50' : ''}`}
+            >
+              <Smile className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="发送图片/文件"
+              className="p-1 rounded-lg transition-colors hover:text-blue-600"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => docInputRef.current?.click()}
+              title="发送文档"
+              className="p-1 rounded-lg transition-colors hover:text-blue-600"
+            >
+              <FileText className="w-5 h-5" />
+            </button>
           </div>
           <div className="flex items-end gap-4">
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="输入消息..."
+              onKeyDown={handleKeyDown}
+              placeholder="输入消息（Enter 发送，Shift+Enter 换行）..."
               className="flex-1 bg-gray-50 border-none rounded-2xl p-3 text-sm focus:ring-2 focus:ring-blue-100 transition-all resize-none h-20"
             />
-            <button className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100">
+            <button
+              onClick={handleSend}
+              className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!message.trim()}
+            >
               <Send className="w-5 h-5" />
             </button>
           </div>
@@ -848,53 +1151,298 @@ const Chat = () => {
   );
 };
 
-const ApprovalGroups = () => {
-  const groups = [
-    { name: '财务审批组', members: ['张三', '李四', '王五'], role: '费用审核' },
-    { name: '行政审批组', members: ['赵六', '钱七'], role: '印章管理' },
-    { name: '技术审批组', members: ['孙八', '周九'], role: '资源申请' },
-  ];
+const TravelRequestDetailView = ({ request }: { request: WorkflowRequest }) => {
+  const detail = request.travelDetail || createDefaultTravelDetail(request.applicant, request.dept);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">审批组管理</h2>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
-          <Plus className="w-4 h-4" /> 创建审批组
-        </button>
+    <div className="p-8 space-y-6 max-h-[72vh] overflow-y-auto text-sm">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">流程编号</div>
+          <div className="font-medium text-gray-800">{request.id}</div>
+        </div>
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">申请人</div>
+          <div className="font-medium text-gray-800">{detail.name}</div>
+        </div>
+        <div className="space-y-1.5">
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">状态</div>
+          <div className="font-medium text-gray-800">{request.status}</div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {groups.map((group) => (
-          <div key={group.name} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-800">{group.name}</h3>
-                <span className="text-xs text-gray-400">{group.role}</span>
-              </div>
+      <div className="bg-gray-50/60 rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center gap-2 text-blue-600">
+          <Users2 className="w-4 h-4" />
+          <h3 className="text-sm font-bold">申请人信息</h3>
+        </div>
+        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div><div className="text-gray-400 mb-1">姓名</div><div className="font-medium text-gray-800">{detail.name}</div></div>
+          <div><div className="text-gray-400 mb-1">成本中心</div><div className="font-medium text-gray-800">{detail.costCenter}</div></div>
+          <div><div className="text-gray-400 mb-1">出差事由</div><div className="font-medium text-gray-800">{detail.reason}</div></div>
+          <div className="md:col-span-3"><div className="text-gray-400 mb-1">具体说明</div><div className="font-medium text-gray-800">{detail.description}</div></div>
+          <div><div className="text-gray-400 mb-1">是否首次出差</div><div className="font-medium text-gray-800">{detail.firstTravel}</div></div>
+          <div><div className="text-gray-400 mb-1">RG</div><div className="font-medium text-gray-800">{detail.rg}</div></div>
+          <div><div className="text-gray-400 mb-1">CPF</div><div className="font-medium text-gray-800">{detail.cpf}</div></div>
+          <div><div className="text-gray-400 mb-1">出生日期</div><div className="font-medium text-gray-800">{detail.birthDate}</div></div>
+          <div><div className="text-gray-400 mb-1">提交时间</div><div className="font-medium text-gray-800">{request.createTime}</div></div>
+          <div><div className="text-gray-400 mb-1">当前节点</div><div className="font-medium text-gray-800">{request.currentNode}</div></div>
+          <div><div className="text-gray-400 mb-1">审批人</div><div className="font-medium text-gray-800">{request.approver}</div></div>
+        </div>
+      </div>
+
+      <div className="bg-gray-50/60 rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center gap-2 text-blue-600">
+          <Plane className="w-4 h-4" />
+          <h3 className="text-sm font-bold">行程段</h3>
+        </div>
+        <div className="p-6 space-y-4">
+          {detail.segments.map((segment, index) => (
+            <div key={`${segment.from}-${segment.to}-${index}`} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-white rounded-xl border border-gray-100">
+              <div><div className="text-gray-400 mb-1">出发地</div><div className="font-medium text-gray-800">{segment.from}</div></div>
+              <div><div className="text-gray-400 mb-1">目的地</div><div className="font-medium text-gray-800">{segment.to}</div></div>
+              <div><div className="text-gray-400 mb-1">日期时间</div><div className="font-medium text-gray-800">{segment.dateTime}</div></div>
+              <div><div className="text-gray-400 mb-1">交通方式</div><div className="font-medium text-gray-800">{segment.transport}</div></div>
             </div>
-            <div className="space-y-3">
-              <div className="text-xs text-gray-500 font-medium uppercase tracking-wider">组成员</div>
-              <div className="flex flex-wrap gap-2">
-                {group.members.map(m => (
-                  <span key={m} className="px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs border border-gray-100">{m}</span>
-                ))}
-                <button className="w-6 h-6 rounded-full border border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 transition-colors">
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-gray-50/60 rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center gap-2 text-blue-600">
+            <Briefcase className="w-4 h-4" />
+            <h3 className="text-sm font-bold">行李</h3>
           </div>
-        ))}
+          <div className="p-6 grid grid-cols-2 gap-4">
+            <div><div className="text-gray-400 mb-1">是否需要托运行李</div><div className="font-medium text-gray-800">{detail.needBaggage ? '是' : '否'}</div></div>
+            <div><div className="text-gray-400 mb-1">数量</div><div className="font-medium text-gray-800">{detail.needBaggage ? `${detail.baggageQty} 件` : '-'}</div></div>
+          </div>
+        </div>
+        <div className="bg-gray-50/60 rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center gap-2 text-blue-600">
+            <Home className="w-4 h-4" />
+            <h3 className="text-sm font-bold">住宿</h3>
+          </div>
+          <div className="p-6 grid grid-cols-2 gap-4">
+            <div><div className="text-gray-400 mb-1">需要酒店</div><div className="font-medium text-gray-800">{detail.needHotel ? '是' : '否'}</div></div>
+            <div><div className="text-gray-400 mb-1">入住城市</div><div className="font-medium text-gray-800">{detail.hotelCity}</div></div>
+            <div><div className="text-gray-400 mb-1">酒店名称</div><div className="font-medium text-gray-800">{detail.hotelName}</div></div>
+            <div><div className="text-gray-400 mb-1">预计费用</div><div className="font-medium text-gray-800">{detail.hotelCost}</div></div>
+            <div><div className="text-gray-400 mb-1">入住时间</div><div className="font-medium text-gray-800">{detail.checkIn}</div></div>
+            <div><div className="text-gray-400 mb-1">离开时间</div><div className="font-medium text-gray-800">{detail.checkOut}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-gray-50/60 rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center gap-2 text-blue-600">
+            <CreditCard className="w-4 h-4" />
+            <h3 className="text-sm font-bold">费用与银行信息</h3>
+          </div>
+          <div className="p-6 grid grid-cols-2 gap-4">
+            <div><div className="text-gray-400 mb-1">需要预付款</div><div className="font-medium text-gray-800">{detail.needAdvance ? '是' : '否'}</div></div>
+            <div><div className="text-gray-400 mb-1">币种</div><div className="font-medium text-gray-800">{detail.currency}</div></div>
+            <div><div className="text-gray-400 mb-1">金额</div><div className="font-medium text-gray-800">{detail.amount}</div></div>
+            <div><div className="text-gray-400 mb-1">银行</div><div className="font-medium text-gray-800">{detail.bank}</div></div>
+            <div><div className="text-gray-400 mb-1">网点</div><div className="font-medium text-gray-800">{detail.agency}</div></div>
+            <div><div className="text-gray-400 mb-1">账号</div><div className="font-medium text-gray-800">{detail.account}</div></div>
+            <div className="col-span-2"><div className="text-gray-400 mb-1">PIX</div><div className="font-medium text-gray-800">{detail.pix}</div></div>
+          </div>
+        </div>
+        <div className="bg-gray-50/60 rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center gap-2 text-blue-600">
+            <RotateCcw className="w-4 h-4 rotate-90" />
+            <h3 className="text-sm font-bold">车辆租赁</h3>
+          </div>
+          <div className="p-6 grid grid-cols-2 gap-4">
+            <div><div className="text-gray-400 mb-1">需要租车</div><div className="font-medium text-gray-800">{detail.needVehicle ? '是' : '否'}</div></div>
+            <div><div className="text-gray-400 mb-1">主驾驶</div><div className="font-medium text-gray-800">{detail.driver}</div></div>
+            <div><div className="text-gray-400 mb-1">副驾驶</div><div className="font-medium text-gray-800">{detail.coDriver}</div></div>
+            <div><div className="text-gray-400 mb-1">取车地点</div><div className="font-medium text-gray-800">{detail.pickupLocation}</div></div>
+            <div><div className="text-gray-400 mb-1">取车时间</div><div className="font-medium text-gray-800">{detail.pickupTime}</div></div>
+            <div><div className="text-gray-400 mb-1">还车地点</div><div className="font-medium text-gray-800">{detail.returnLocation}</div></div>
+            <div className="col-span-2"><div className="text-gray-400 mb-1">还车时间</div><div className="font-medium text-gray-800">{detail.returnTime}</div></div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-const LeaveRequestForm = ({ onBack, title = '请假申请' }: { onBack: () => void; title?: string }) => {
+const ApprovalGroups = ({
+  workflowRequests,
+  currentUser,
+  initialTab,
+  onApprove,
+  onReject,
+}: {
+  workflowRequests: WorkflowRequest[];
+  currentUser: any;
+  initialTab: WorkflowTab;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+}) => {
+  const [tab, setTab] = useState<WorkflowTab>(initialTab);
+  const [selectedRequest, setSelectedRequest] = useState<WorkflowRequest | null>(null);
+
+  React.useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
+
+  const currentDisplayName = currentUser?.nickname || currentUser?.username || '管理员';
+  const pendingItems = workflowRequests.filter(item => item.status === '待审批');
+  const submittedItems = workflowRequests.filter(item => item.applicant === currentDisplayName);
+  const processedItems = workflowRequests.filter(item => item.status !== '待审批');
+  const visibleItems = tab === 'pending' ? pendingItems : tab === 'submitted' ? submittedItems : processedItems;
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">流程待办中心</h2>
+          <p className="text-sm text-gray-400 mt-1">统一处理待审批、我发起和已处理流程</p>
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          {[
+            { id: 'pending', label: `待审批 ${pendingItems.length}` },
+            { id: 'submitted', label: `我发起的 ${submittedItems.length}` },
+            { id: 'processed', label: `已处理 ${processedItems.length}` },
+          ].map(item => (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id as WorkflowTab)}
+              className={`px-4 py-2 rounded-xl transition-colors ${tab === item.id ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-blue-200 hover:text-blue-600'}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-blue-600" />
+            <h3 className="font-bold text-gray-800">流程列表</h3>
+          </div>
+          <span className="text-sm text-gray-400">共 {visibleItems.length} 条</span>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {visibleItems.length === 0 && (
+            <div className="py-16 text-center text-gray-400">当前分类暂无流程记录</div>
+          )}
+          {visibleItems.map(item => (
+            <div key={item.id} className="px-6 py-5 flex items-center justify-between gap-6 hover:bg-gray-50/50 transition-colors">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                  <button onClick={() => setSelectedRequest(item)} className="text-sm font-bold text-gray-800 hover:text-gray-600 transition-colors">{item.type}</button>
+                  <span className="text-xs text-gray-400">{item.id}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.status === '待审批' ? 'bg-blue-100 text-blue-600' : item.status === '已通过' ? 'bg-green-100 text-green-600' : item.status === '已驳回' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                    {item.status}
+                  </span>
+                </div>
+                <button onClick={() => setSelectedRequest(item)} className="text-sm text-blue-500 truncate hover:text-blue-700 transition-colors text-left max-w-full">{item.summary}</button>
+                <div className="mt-2 flex items-center gap-4 text-xs text-gray-400 flex-wrap">
+                  <span>申请人：{item.applicant}</span>
+                  <span>部门：{item.dept}</span>
+                  <span>当前节点：{item.currentNode}</span>
+                  <span>审批人：{item.approver}</span>
+                  <span>提交时间：{item.createTime}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => setSelectedRequest(item)} className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm text-gray-600 hover:border-blue-200 hover:text-blue-600 transition-colors">查看</button>
+                {tab === 'pending' && (
+                  <>
+                    <button onClick={() => onReject(item.id)} className="px-4 py-2 rounded-xl bg-red-50 text-red-600 text-sm hover:bg-red-100 transition-colors">驳回</button>
+                    <button onClick={() => onApprove(item.id)} className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">同意</button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {selectedRequest && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={() => setSelectedRequest(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className={`bg-white w-full ${selectedRequest.type === '出差申请' ? 'max-w-5xl' : 'max-w-2xl'} rounded-3xl shadow-2xl overflow-hidden`}
+            >
+              <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div>
+                  <div className="text-lg font-bold text-gray-800">{selectedRequest.type}</div>
+                  <div className="text-sm text-gray-400 mt-1">{selectedRequest.id}</div>
+                </div>
+                <button onClick={() => setSelectedRequest(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              {selectedRequest.type === '出差申请' ? (
+                <TravelRequestDetailView request={selectedRequest} />
+              ) : (
+                <div className="p-8 grid grid-cols-2 gap-6 text-sm">
+                  <div>
+                    <div className="text-gray-400 mb-1">申请人</div>
+                    <div className="font-medium text-gray-800">{selectedRequest.applicant}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">部门</div>
+                    <div className="font-medium text-gray-800">{selectedRequest.dept}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">当前节点</div>
+                    <div className="font-medium text-gray-800">{selectedRequest.currentNode}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">审批人</div>
+                    <div className="font-medium text-gray-800">{selectedRequest.approver}</div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-gray-400 mb-1">摘要</div>
+                    <div className="font-medium text-gray-800">{selectedRequest.summary}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">提交时间</div>
+                    <div className="font-medium text-gray-800">{selectedRequest.createTime}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 mb-1">状态</div>
+                    <div className="font-medium text-gray-800">{selectedRequest.status}</div>
+                  </div>
+                </div>
+              )}
+              <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+                {selectedRequest.status === '待审批' && (
+                  <>
+                    <button onClick={() => { onReject(selectedRequest.id); setSelectedRequest(null); }} className="px-5 py-2.5 rounded-xl bg-red-50 text-red-600 text-sm hover:bg-red-100 transition-colors">驳回</button>
+                    <button onClick={() => { onApprove(selectedRequest.id); setSelectedRequest(null); }} className="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors">审批通过</button>
+                  </>
+                )}
+                <button onClick={() => setSelectedRequest(null)} className="px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">关闭</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const LeaveRequestForm = ({ onBack, title = '请假申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -924,10 +1472,10 @@ const LeaveRequestForm = ({ onBack, title = '请假申请' }: { onBack: () => vo
           <button type="button" onClick={() => { alert('草稿已保存'); onBack(); }} className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
             存草稿
           </button>
-          <button type="button" onClick={() => alert('提交成功，正在创建下一条...')} className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
+          <button type="button" onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
             提交并继续创建
           </button>
-          <button type="button" onClick={() => { alert('提交成功'); onBack(); }} className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
+          <button type="button" onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             提交
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
@@ -1021,7 +1569,7 @@ const LeaveRequestForm = ({ onBack, title = '请假申请' }: { onBack: () => vo
   );
 };
 
-const TrainingRequestForm = ({ onBack, title = '培训申请' }: { onBack: () => void; title?: string }) => {
+const TrainingRequestForm = ({ onBack, title = '培训申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -1122,10 +1670,10 @@ const TrainingRequestForm = ({ onBack, title = '培训申请' }: { onBack: () =>
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
             存草稿
           </button>
-          <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
             提交并继续创建
           </button>
-          <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -1134,7 +1682,7 @@ const TrainingRequestForm = ({ onBack, title = '培训申请' }: { onBack: () =>
   );
 };
 
-const StampRequestForm = ({ onBack, title = '用印申请' }: { onBack: () => void; title?: string }) => {
+const StampRequestForm = ({ onBack, title = '用印申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -1254,10 +1802,10 @@ const StampRequestForm = ({ onBack, title = '用印申请' }: { onBack: () => vo
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
             存草稿
           </button>
-          <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
             提交并继续创建
           </button>
-          <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -1266,7 +1814,7 @@ const StampRequestForm = ({ onBack, title = '用印申请' }: { onBack: () => vo
   );
 };
 
-const ReimbursementRequestForm = ({ onBack, title = '报销申请' }: { onBack: () => void; title?: string }) => {
+const ReimbursementRequestForm = ({ onBack, title = '报销申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -1385,10 +1933,10 @@ const ReimbursementRequestForm = ({ onBack, title = '报销申请' }: { onBack: 
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
             存草稿
           </button>
-          <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
             提交并继续创建
           </button>
-          <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -1397,7 +1945,7 @@ const ReimbursementRequestForm = ({ onBack, title = '报销申请' }: { onBack: 
   );
 };
 
-const PaymentRequestForm = ({ onBack, title = '付款申请' }: { onBack: () => void; title?: string }) => {
+const PaymentRequestForm = ({ onBack, title = '付款申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -1495,10 +2043,10 @@ const PaymentRequestForm = ({ onBack, title = '付款申请' }: { onBack: () => 
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
             存草稿
           </button>
-          <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
             提交并继续创建
           </button>
-          <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -1507,7 +2055,7 @@ const PaymentRequestForm = ({ onBack, title = '付款申请' }: { onBack: () => 
   );
 };
 
-const InvoiceRequestForm = ({ onBack, title = '开票申请' }: { onBack: () => void; title?: string }) => {
+const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -1603,10 +2151,10 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请' }: { onBack: () => 
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
             存草稿
           </button>
-          <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
             提交并继续创建
           </button>
-          <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -1615,7 +2163,7 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请' }: { onBack: () => 
   );
 };
 
-const ProcurementRequestForm = ({ onBack, title = '采购申请' }: { onBack: () => void; title?: string }) => {
+const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -1712,10 +2260,10 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请' }: { onBack: ()
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
             存草稿
           </button>
-          <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
             提交并继续创建
           </button>
-          <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -1724,7 +2272,7 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请' }: { onBack: ()
   );
 };
 
-const RequisitionRequestForm = ({ onBack, title = '领用申请' }: { onBack: () => void; title?: string }) => {
+const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -1812,14 +2360,14 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请' }: { onBack: ()
           </button>
           <button 
             type="button"
-            onClick={() => alert('提交成功，正在创建下一条...')}
+            onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }}
             className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
           >
             提交并继续创建
           </button>
           <button 
             type="button"
-            onClick={() => { alert('提交成功'); onBack(); }}
+            onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }}
             className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
           >
             提交
@@ -1830,7 +2378,7 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请' }: { onBack: ()
   );
 };
 
-const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser }: { onBack: () => void; title?: string; currentUser?: any }) => {
+const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onSubmitRequest }: { onBack: () => void; title?: string; currentUser?: any; onSubmitRequest?: (title: string) => void }) => {
   const [needVehicle, setNeedVehicle] = useState(true);
   const [needBaggage, setNeedBaggage] = useState(true);
   const [needHotel, setNeedHotel] = useState(true);
@@ -1894,14 +2442,14 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser }: {
           </button>
           <button 
             type="button"
-            onClick={() => alert('提交成功，正在创建下一条...')}
+            onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }}
             className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all"
           >
             提交并继续创建
           </button>
           <button 
             type="button"
-            onClick={() => { alert('提交成功'); onBack(); }}
+            onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }}
             className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all"
           >
             提交
@@ -2595,17 +3143,61 @@ const ProcurementDetailReport = () => {
 
 const TravelRequestReport = () => {
   const data = [
-    { id: 1, name: '王严严', dept: '财务部', reason: '1', desc: '世界那么大，我想去看看', isFirst: '是', rg: '3203212000060711', dob: '2026-03-20', cpf: '12345', transport: 2, baggage: true },
-    { id: 2, name: '吴勇', dept: '市场部', reason: '2', desc: '需带样品一套', isFirst: '', rg: '4303021985110532', dob: '1985-11-05', cpf: '999.888.777-66', transport: 0, baggage: false },
-    { id: 3, name: '李浩宇', dept: '研发中心', reason: '3', desc: '为期三天，需完成报告', isFirst: '', rg: '3301041999090938', dob: '1999-09-09', cpf: '666.777.555-88', transport: 0, baggage: true },
-    { id: 4, name: '张丽莉', dept: '财务部', reason: '1', desc: '带合同文本及样品', isFirst: '', rg: '1306811992080876', dob: '1992-08-08', cpf: '222.333.444-55', transport: 0, baggage: true },
-    { id: 5, name: '王强', dept: '研发中心', reason: '2', desc: '短期驻场解决紧急问题', isFirst: '', rg: '1101011995110912', dob: '1995-11-09', cpf: '888.0.222-33', transport: 0, baggage: false },
-    { id: 6, name: '陈嘉怡', dept: '市场部', reason: '3', desc: '需准备调研问卷', isFirst: '', rg: '4201071986052078', dob: '1986-05-20', cpf: '111.222.333-55', transport: 0, baggage: true },
-    { id: 7, name: '吴勇', dept: '市场部', reason: '1', desc: '与客户面对面交流', isFirst: '', rg: '4401051992121522', dob: '1992-12-15', cpf: '777.888.999-66', transport: 0, baggage: true },
-    { id: 8, name: '李浩宇', dept: '研发中心', reason: '2', desc: '需带海报与名片', isFirst: '', rg: '3101011998010187', dob: '1998-01-01', cpf: '333.444.555-0', transport: 0, baggage: true },
-    { id: 9, name: '张丽莉', dept: '财务部', reason: '3', desc: '顺便调研当地市场情况', isFirst: '', rg: '5201151993052534', dob: '1993-05-25', cpf: '852.123.456-78', transport: 0, baggage: false },
-    { id: 10, name: '王强', dept: '研发中心', reason: '1', desc: '需携带部分设备样品', isFirst: '', rg: '3502031987061550', dob: '1987-06-15', cpf: '127.555.999-44', transport: 0, baggage: true },
-    { id: 11, name: '陈嘉怡', dept: '市场部', reason: '2', desc: '需带公司资料及展示板', isFirst: '', rg: '4409821989041275', dob: '1990-04-12', cpf: '428.350.118-13', transport: 0, baggage: true },
+    { id: 1, name: '王严严', dept: 'FISCAL ELETRA', reason: '业务洽谈', desc: '世界那么大，我想去看看', isFirst: '是', rg: '3203212000060711', dob: '2000-06-07', cpf: '123.456.789-00',
+      segments: 'MANAUS→CEARA / 2026-03-08 / 飞机', baggageQty: 2, baggage: true,
+      needHotel: true, hotelCity: 'CEARA', hotelName: 'Hotel Center', checkIn: '2026-03-08 14:00', checkOut: '2026-03-20 11:00', hotelCost: 'R$1,200',
+      needAdvance: true, currency: 'BRL', amount: 'R$1,320.00', bank: 'Itaú Unibanco', agency: '9651', account: '03756-7', pix: '83277633268',
+      needVehicle: true, driver: '王严严', coDriver: '', pickupLoc: 'CEARA Airport', pickupTime: '2026-03-08 15:00', returnLoc: 'CEARA Airport', returnTime: '2026-03-20 10:00' },
+    { id: 2, name: '吴勇', dept: '市场部', reason: '技术支持', desc: '需带样品一套', isFirst: '', rg: '4303021985110532', dob: '1985-11-05', cpf: '999.888.777-66',
+      segments: 'SÃO PAULO→MANAUS / 2026-03-10 / 飞机', baggageQty: 1, baggage: false,
+      needHotel: false, hotelCity: '', hotelName: '', checkIn: '', checkOut: '', hotelCost: '',
+      needAdvance: false, currency: 'BRL', amount: '', bank: '', agency: '', account: '', pix: '',
+      needVehicle: false, driver: '', coDriver: '', pickupLoc: '', pickupTime: '', returnLoc: '', returnTime: '' },
+    { id: 3, name: '李浩宇', dept: '研发中心', reason: '内部培训', desc: '为期三天，需完成报告', isFirst: '', rg: '3301041999090938', dob: '1999-09-09', cpf: '666.777.555-88',
+      segments: 'RIO→BRASÍLIA / 2026-03-12 / 飞机', baggageQty: 0, baggage: true,
+      needHotel: true, hotelCity: 'Brasília', hotelName: 'Nacional Hotel', checkIn: '2026-03-12 15:00', checkOut: '2026-03-15 12:00', hotelCost: 'R$900',
+      needAdvance: true, currency: 'BRL', amount: 'R$800.00', bank: 'Bradesco', agency: '1234', account: '56789-0', pix: '66677755588',
+      needVehicle: false, driver: '', coDriver: '', pickupLoc: '', pickupTime: '', returnLoc: '', returnTime: '' },
+    { id: 4, name: '张丽莉', dept: '财务部', reason: '业务洽谈', desc: '带合同文本及样品', isFirst: '', rg: '1306811992080876', dob: '1992-08-08', cpf: '222.333.444-55',
+      segments: 'MANAUS→RIO / 2026-03-15 / 飞机', baggageQty: 2, baggage: true,
+      needHotel: true, hotelCity: 'Rio de Janeiro', hotelName: 'Windsor Hotel', checkIn: '2026-03-15 18:00', checkOut: '2026-03-18 10:00', hotelCost: 'R$1,500',
+      needAdvance: true, currency: 'BRL', amount: 'R$2,000.00', bank: 'Caixa', agency: '4567', account: '89012-3', pix: '22233344455',
+      needVehicle: true, driver: '张丽莉', coDriver: '', pickupLoc: 'Rio Airport', pickupTime: '2026-03-15 19:00', returnLoc: 'Rio Airport', returnTime: '2026-03-18 09:00' },
+    { id: 5, name: '王强', dept: '研发中心', reason: '技术支持', desc: '短期驻场解决紧急问题', isFirst: '', rg: '1101011995110912', dob: '1995-11-09', cpf: '888.0.222-33',
+      segments: 'CEARA→SÃO PAULO / 2026-03-16 / 巴士', baggageQty: 0, baggage: false,
+      needHotel: false, hotelCity: '', hotelName: '', checkIn: '', checkOut: '', hotelCost: '',
+      needAdvance: false, currency: 'BRL', amount: '', bank: '', agency: '', account: '', pix: '',
+      needVehicle: false, driver: '', coDriver: '', pickupLoc: '', pickupTime: '', returnLoc: '', returnTime: '' },
+    { id: 6, name: '陈嘉怡', dept: '市场部', reason: '内部培训', desc: '需准备调研问卷', isFirst: '', rg: '4201071986052078', dob: '1986-05-20', cpf: '111.222.333-55',
+      segments: 'MANAUS→SALVADOR / 2026-03-18 / 飞机', baggageQty: 1, baggage: true,
+      needHotel: true, hotelCity: 'Salvador', hotelName: 'Sheraton Hotel', checkIn: '2026-03-18 16:00', checkOut: '2026-03-21 11:00', hotelCost: 'R$1,100',
+      needAdvance: true, currency: 'BRL', amount: 'R$1,500.00', bank: 'Itaú Unibanco', agency: '2345', account: '67890-1', pix: '11122233355',
+      needVehicle: false, driver: '', coDriver: '', pickupLoc: '', pickupTime: '', returnLoc: '', returnTime: '' },
+    { id: 7, name: '吴勇', dept: '市场部', reason: '业务洽谈', desc: '与客户面对面交流', isFirst: '', rg: '4401051992121522', dob: '1992-12-15', cpf: '777.888.999-66',
+      segments: 'MANAUS→FORTALEZA / 2026-03-20 / 飞机', baggageQty: 0, baggage: true,
+      needHotel: true, hotelCity: 'Fortaleza', hotelName: 'Praia Hotel', checkIn: '2026-03-20 20:00', checkOut: '2026-03-23 10:00', hotelCost: 'R$750',
+      needAdvance: true, currency: 'BRL', amount: 'R$900.00', bank: 'Santander', agency: '0987', account: '12345-6', pix: '77788899966',
+      needVehicle: true, driver: '吴勇', coDriver: '张丽莉', pickupLoc: 'Fortaleza Airport', pickupTime: '2026-03-20 21:00', returnLoc: 'Fortaleza Airport', returnTime: '2026-03-23 09:00' },
+    { id: 8, name: '李浩宇', dept: '研发中心', reason: '技术支持', desc: '需带海报与名片', isFirst: '', rg: '3101011998010187', dob: '1998-01-01', cpf: '333.444.555-0',
+      segments: 'RIO→MANAUS / 2026-03-22 / 飞机', baggageQty: 1, baggage: true,
+      needHotel: false, hotelCity: '', hotelName: '', checkIn: '', checkOut: '', hotelCost: '',
+      needAdvance: false, currency: 'BRL', amount: '', bank: '', agency: '', account: '', pix: '',
+      needVehicle: false, driver: '', coDriver: '', pickupLoc: '', pickupTime: '', returnLoc: '', returnTime: '' },
+    { id: 9, name: '张丽莉', dept: '财务部', reason: '内部培训', desc: '顺便调研当地市场情况', isFirst: '', rg: '5201151993052534', dob: '1993-05-25', cpf: '852.123.456-78',
+      segments: 'SÃO PAULO→BELO HORIZONTE / 2026-03-24 / 巴士', baggageQty: 2, baggage: false,
+      needHotel: true, hotelCity: 'Belo Horizonte', hotelName: 'Ouro Preto Hotel', checkIn: '2026-03-24 14:00', checkOut: '2026-03-27 11:00', hotelCost: 'R$680',
+      needAdvance: true, currency: 'BRL', amount: 'R$700.00', bank: 'Caixa', agency: '1111', account: '22222-3', pix: '85212345678',
+      needVehicle: false, driver: '', coDriver: '', pickupLoc: '', pickupTime: '', returnLoc: '', returnTime: '' },
+    { id: 10, name: '王强', dept: '研发中心', reason: '业务洽谈', desc: '需携带部分设备样品', isFirst: '', rg: '3502031987061550', dob: '1987-06-15', cpf: '127.555.999-44',
+      segments: 'MANAUS→CURITIBA / 2026-03-25 / 飞机', baggageQty: 3, baggage: true,
+      needHotel: true, hotelCity: 'Curitiba', hotelName: 'Bourbon Hotel', checkIn: '2026-03-25 16:00', checkOut: '2026-03-28 10:00', hotelCost: 'R$950',
+      needAdvance: true, currency: 'USD', amount: '$500.00', bank: 'Bradesco', agency: '5678', account: '34567-8', pix: '12755599944',
+      needVehicle: true, driver: '王强', coDriver: '', pickupLoc: 'Curitiba Airport', pickupTime: '2026-03-25 17:00', returnLoc: 'Curitiba Airport', returnTime: '2026-03-28 09:00' },
+    { id: 11, name: '陈嘉怡', dept: '市场部', reason: '技术支持', desc: '需带公司资料及展示板', isFirst: '', rg: '4409821989041275', dob: '1990-04-12', cpf: '428.350.118-13',
+      segments: 'CEARA→MANAUS / 2026-03-26 / 飞机', baggageQty: 1, baggage: true,
+      needHotel: false, hotelCity: '', hotelName: '', checkIn: '', checkOut: '', hotelCost: '',
+      needAdvance: true, currency: 'BRL', amount: 'R$600.00', bank: 'Nubank', agency: '0001', account: '99999-0', pix: '42835011813',
+      needVehicle: false, driver: '', coDriver: '', pickupLoc: '', pickupTime: '', returnLoc: '', returnTime: '' },
   ];
 
   return (
@@ -2682,30 +3274,59 @@ const TravelRequestReport = () => {
 
       {/* Table Content */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-xs text-left border-collapse min-w-[1200px]">
+        <table className="w-full text-xs text-left border-collapse min-w-[3200px]">
           <thead className="bg-gray-50 text-gray-500 font-medium sticky top-0 z-10">
-            <tr>
-              <th className="px-3 py-3 border-r border-gray-100 w-10">
-                <div className="flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-gray-400" />
-                </div>
+            {/* Group headers */}
+            <tr className="text-[10px] font-bold uppercase">
+              <th className="px-3 py-2 border-r border-gray-100 w-10" rowSpan={2}>
+                <div className="flex items-center justify-center"><FileText className="w-4 h-4 text-gray-400" /></div>
               </th>
-              <th className="px-3 py-3 border-r border-gray-100 w-12">
+              <th className="px-3 py-2 border-r border-gray-100 w-12" rowSpan={2}>
                 <div className="flex items-center gap-1">
                   <input type="checkbox" className="rounded border-gray-300" />
                   <ChevronDown className="w-3 h-3" />
                 </div>
               </th>
-              <th className="px-4 py-3 border-r border-gray-100">全名</th>
-              <th className="px-4 py-3 border-r border-gray-100">成本中心</th>
-              <th className="px-4 py-3 border-r border-gray-100">出差事由</th>
-              <th className="px-4 py-3 border-r border-gray-100">理由/说明</th>
-              <th className="px-4 py-3 border-r border-gray-100">是否首次出差</th>
-              <th className="px-4 py-3 border-r border-gray-100">身份证号 (RG)</th>
-              <th className="px-4 py-3 border-r border-gray-100">出生日期</th>
-              <th className="px-4 py-3 border-r border-gray-100">税号 (CPF)</th>
-              <th className="px-4 py-3 border-r border-gray-100">交通方式</th>
-              <th className="px-4 py-3">是否需要托运行李</th>
+              <th colSpan={8} className="px-4 py-2 border-r border-b border-gray-100 bg-blue-50 text-blue-600 text-center">申请人信息 (PASSAGEIRO)</th>
+              <th colSpan={1} className="px-4 py-2 border-r border-b border-gray-100 bg-purple-50 text-purple-600 text-center">行程段 (TRECHOS)</th>
+              <th colSpan={2} className="px-4 py-2 border-r border-b border-gray-100 bg-orange-50 text-orange-600 text-center">行李 (BAGAGEM)</th>
+              <th colSpan={6} className="px-4 py-2 border-r border-b border-gray-100 bg-green-50 text-green-600 text-center">住宿 (HOSPEDAGEM)</th>
+              <th colSpan={7} className="px-4 py-2 border-r border-b border-gray-100 bg-yellow-50 text-yellow-700 text-center">费用与银行 (ADIANTAMENTO)</th>
+              <th colSpan={7} className="px-4 py-2 border-b border-gray-100 bg-red-50 text-red-600 text-center">车辆租赁 (VEÍCULO)</th>
+            </tr>
+            {/* Field headers */}
+            <tr>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">姓名</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">成本中心</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">出差事由</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">具体说明</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">首次出差</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">RG</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">出生日期</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">CPF</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">行程段</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">托运行李</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">数量</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">需要酒店</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">入住城市</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">酒店名称</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">入住时间</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">离开时间</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">预计费用</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">需要预付款</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">币种</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">金额</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">银行</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">网点 (Agência)</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">账号 (Conta)</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">PIX</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">需要租车</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">主驾驶</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">副驾驶</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">取车地点</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">取车时间</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">还车地点</th>
+              <th className="px-4 py-2 whitespace-nowrap">还车时间</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -2715,34 +3336,64 @@ const TravelRequestReport = () => {
                 <td className="px-3 py-2 text-center border-r border-gray-50">
                   <input type="checkbox" className="rounded border-gray-300" />
                 </td>
+                {/* 申请人信息 */}
                 <td className="px-4 py-2 border-r border-gray-50">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-[10px] text-white font-bold">严严</div>
-                    <span>{row.name}</span>
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold flex-shrink-0">{row.name.slice(0,1)}</div>
+                    <span className="whitespace-nowrap">{row.name}</span>
                   </div>
                 </td>
                 <td className="px-4 py-2 border-r border-gray-50">
-                  {row.dept && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100">{row.dept}</span>}
+                  {row.dept && <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 whitespace-nowrap">{row.dept}</span>}
                 </td>
-                <td className="px-4 py-2 border-r border-gray-50">{row.reason}</td>
-                <td className="px-4 py-2 border-r border-gray-50 text-gray-500">{row.desc}</td>
-                <td className="px-4 py-2 border-r border-gray-50">
-                  {row.isFirst === '是' && <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[10px] font-bold">是</span>}
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.reason}</td>
+                <td className="px-4 py-2 border-r border-gray-50 text-gray-500 max-w-[160px] truncate">{row.desc}</td>
+                <td className="px-4 py-2 border-r border-gray-50 text-center">
+                  {row.isFirst === '是' ? <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[10px] font-bold">是</span> : <span className="text-gray-300">否</span>}
                 </td>
-                <td className="px-4 py-2 border-r border-gray-50 font-mono">{row.rg}</td>
-                <td className="px-4 py-2 border-r border-gray-50">{row.dob}</td>
-                <td className="px-4 py-2 border-r border-gray-50 font-mono">{row.cpf}</td>
-                <td className="px-4 py-2 border-r border-gray-50">
-                  {row.transport > 0 && (
-                    <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">
-                      <Grid className="w-3 h-3" />
-                      <span>{row.transport}</span>
-                    </div>
-                  )}
+                <td className="px-4 py-2 border-r border-gray-50 font-mono whitespace-nowrap">{row.rg}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.dob}</td>
+                <td className="px-4 py-2 border-r border-gray-50 font-mono whitespace-nowrap">{row.cpf}</td>
+                {/* 行程段 */}
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">
+                  <span className="bg-purple-50 text-purple-600 px-2 py-0.5 rounded text-[10px] font-bold">{row.segments}</span>
                 </td>
-                <td className="px-4 py-2">
+                {/* 行李 */}
+                <td className="px-4 py-2 border-r border-gray-50 text-center">
                   <input type="checkbox" checked={row.baggage} readOnly className="rounded border-gray-300 text-blue-600" />
                 </td>
+                <td className="px-4 py-2 border-r border-gray-50 text-center">
+                  {row.baggageQty > 0 ? <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded font-bold">{row.baggageQty} 件</span> : <span className="text-gray-300">—</span>}
+                </td>
+                {/* 住宿 */}
+                <td className="px-4 py-2 border-r border-gray-50 text-center">
+                  {row.needHotel ? <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[10px] font-bold">是</span> : <span className="text-gray-300">否</span>}
+                </td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.hotelCity || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.hotelName || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.checkIn || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.checkOut || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap font-mono">{row.hotelCost || <span className="text-gray-300">—</span>}</td>
+                {/* 费用与银行 */}
+                <td className="px-4 py-2 border-r border-gray-50 text-center">
+                  {row.needAdvance ? <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-[10px] font-bold">是</span> : <span className="text-gray-300">否</span>}
+                </td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.currency || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap font-mono">{row.amount || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.bank || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap font-mono">{row.agency || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap font-mono">{row.account || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap font-mono">{row.pix || <span className="text-gray-300">—</span>}</td>
+                {/* 车辆租赁 */}
+                <td className="px-4 py-2 border-r border-gray-50 text-center">
+                  {row.needVehicle ? <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold">是</span> : <span className="text-gray-300">否</span>}
+                </td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.driver || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.coDriver || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.pickupLoc || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.pickupTime || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.returnLoc || <span className="text-gray-300">—</span>}</td>
+                <td className="px-4 py-2 whitespace-nowrap">{row.returnTime || <span className="text-gray-300">—</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -3230,7 +3881,7 @@ const Favorites = () => {
   );
 };
 
-const ReimbursementForm = ({ onClose }: { onClose: () => void }) => {
+const ReimbursementForm = ({ onClose, onSubmitRequest }: { onClose: () => void; onSubmitRequest?: (title: string) => void }) => {
   const [rows, setRows] = useState([{ id: 1, type: '', from: '', to: '', dateTime: '' }]);
 
   const addRow = () => setRows([...rows, { id: Date.now(), type: '', from: '', to: '', dateTime: '' }]);
@@ -3373,8 +4024,8 @@ const ReimbursementForm = ({ onClose }: { onClose: () => void }) => {
           </label>
           <div className="flex gap-3">
             <button type="button" onClick={() => alert('草稿已保存')} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">存草稿</button>
-            <button type="button" onClick={() => alert('提交成功，正在创建下一条...')} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">提交并继续创建</button>
-            <button type="button" onClick={() => { alert('提交成功'); onClose(); }} className="px-8 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all">提交</button>
+            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">提交并继续创建</button>
+            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); alert('提交成功'); onClose(); }} className="px-8 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all">提交</button>
           </div>
         </div>
       </div>
@@ -3457,8 +4108,10 @@ export default function App() {
   ]);
 
   const [activePage, setActivePage] = useState<Page>('workbench');
+  const [approvalTab, setApprovalTab] = useState<WorkflowTab>('pending');
   const [showForm, setShowForm] = useState(false);
   const [notices, setNotices] = useState<Notice[]>(INITIAL_NOTICES);
+  const [workflowRequests, setWorkflowRequests] = useState<WorkflowRequest[]>(INITIAL_WORKFLOW_REQUESTS);
   const [selectedNoticeForView, setSelectedNoticeForView] = useState<Notice | null>(null);
 
   const handleLogin = (username: string, password: string) => {
@@ -3488,6 +4141,59 @@ export default function App() {
     setNotices(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
+  const handleOpenApprovals = (tab: WorkflowTab) => {
+    setApprovalTab(tab);
+    setActivePage('approvals');
+  };
+
+  const handleSubmitWorkflow = (type: string) => {
+    const prefixMap: Record<string, string> = {
+      '出差申请': 'TR',
+      '请假申请': 'LV',
+      '培训申请': 'TRN',
+      '用印申请': 'SE',
+      '报销申请': 'RB',
+      '付款申请': 'PA',
+      '开票申请': 'IV',
+      '采购申请': 'PO',
+      '领用申请': 'RQ',
+      '费用报销': 'RB',
+    };
+    const now = new Date();
+    const datePart = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
+    const timePart = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    const applicant = currentUser?.nickname || currentUser?.username || '管理员';
+    const dept = currentUser?.dept || '未分配部门';
+    const prefix = prefixMap[type] || 'WF';
+
+    setWorkflowRequests(prev => {
+      const sameTypeCount = prev.filter(item => item.type === type).length + 1;
+      return [
+        {
+          id: `${prefix}${datePart}${sameTypeCount.toString().padStart(3, '0')}`,
+          type,
+          applicant,
+          dept,
+          createTime: `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${timePart}`,
+          status: '待审批',
+          currentNode: '部门审批',
+          approver: '管理员',
+          summary: `${applicant} 提交了${type}，等待审批处理。`,
+          ...(type === '出差申请' ? { travelDetail: createDefaultTravelDetail(applicant, dept) } : {}),
+        },
+        ...prev,
+      ];
+    });
+  };
+
+  const handleApproveWorkflow = (id: string) => {
+    setWorkflowRequests(prev => prev.map(item => item.id === id ? { ...item, status: '已通过', currentNode: '归档', approver: currentUser?.nickname || currentUser?.username || '管理员' } : item));
+  };
+
+  const handleRejectWorkflow = (id: string) => {
+    setWorkflowRequests(prev => prev.map(item => item.id === id ? { ...item, status: '已驳回', currentNode: '申请人修改', approver: currentUser?.nickname || currentUser?.username || '管理员' } : item));
+  };
+
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
@@ -3511,11 +4217,13 @@ export default function App() {
                 <Workbench 
                   onOpenForm={() => setShowForm(true)} 
                   onOpenApps={() => setActivePage('apps')} 
+                  onOpenApprovals={handleOpenApprovals}
                   setActivePage={setActivePage}
                   notices={notices}
                   onMarkAsRead={handleMarkAsRead}
                   onOpenNotice={(n) => setSelectedNoticeForView(n)}
                   currentUser={currentUser}
+                  workflowRequests={workflowRequests}
                 />
               </motion.div>
             )}
@@ -3544,17 +4252,17 @@ export default function App() {
                 {(() => {
                   const props = { onBack: () => setActivePage('apps') };
                   switch (activePage) {
-                    case 'apps-hr-leave': return <LeaveRequestForm {...props} title="请假申请" />;
-                    case 'apps-hr-training': return <TrainingRequestForm {...props} title="培训申请" />;
-                    case 'apps-hr-stamp': return <StampRequestForm {...props} title="用印申请" />;
+                    case 'apps-hr-leave': return <LeaveRequestForm {...props} title="请假申请" onSubmitRequest={handleSubmitWorkflow} />;
+                    case 'apps-hr-training': return <TrainingRequestForm {...props} title="培训申请" onSubmitRequest={handleSubmitWorkflow} />;
+                    case 'apps-hr-stamp': return <StampRequestForm {...props} title="用印申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-hr-travel': 
-                    case 'travel-request': return <TravelRequestForm {...props} title="出差申请" currentUser={currentUser} />;
-                    case 'apps-finance-reimbursement': return <ReimbursementRequestForm {...props} title="报销申请" />;
-                    case 'apps-finance-payment': return <PaymentRequestForm {...props} title="付款申请" />;
-                    case 'apps-finance-invoice': return <InvoiceRequestForm {...props} title="开票申请" />;
-                    case 'apps-supply-procurement': return <ProcurementRequestForm {...props} title="采购申请" />;
-                    case 'apps-supply-requisition': return <RequisitionRequestForm {...props} title="领用申请" />;
-                    default: return <TravelRequestForm {...props} title="单据申请" />;
+                    case 'travel-request': return <TravelRequestForm {...props} title="出差申请" currentUser={currentUser} onSubmitRequest={handleSubmitWorkflow} />;
+                    case 'apps-finance-reimbursement': return <ReimbursementRequestForm {...props} title="报销申请" onSubmitRequest={handleSubmitWorkflow} />;
+                    case 'apps-finance-payment': return <PaymentRequestForm {...props} title="付款申请" onSubmitRequest={handleSubmitWorkflow} />;
+                    case 'apps-finance-invoice': return <InvoiceRequestForm {...props} title="开票申请" onSubmitRequest={handleSubmitWorkflow} />;
+                    case 'apps-supply-procurement': return <ProcurementRequestForm {...props} title="采购申请" onSubmitRequest={handleSubmitWorkflow} />;
+                    case 'apps-supply-requisition': return <RequisitionRequestForm {...props} title="领用申请" onSubmitRequest={handleSubmitWorkflow} />;
+                    default: return <TravelRequestForm {...props} title="单据申请" currentUser={currentUser} onSubmitRequest={handleSubmitWorkflow} />;
                   }
                 })()}
               </motion.div>
@@ -3586,7 +4294,13 @@ export default function App() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
               >
-                <ApprovalGroups />
+                <ApprovalGroups 
+                  workflowRequests={workflowRequests}
+                  currentUser={currentUser}
+                  initialTab={approvalTab}
+                  onApprove={handleApproveWorkflow}
+                  onReject={handleRejectWorkflow}
+                />
               </motion.div>
             )}
             {activePage === 'chat' && (
@@ -3661,7 +4375,7 @@ export default function App() {
       </main>
 
       <AnimatePresence>
-        {showForm && <ReimbursementForm onClose={() => setShowForm(false)} />}
+        {showForm && <ReimbursementForm onClose={() => setShowForm(false)} onSubmitRequest={handleSubmitWorkflow} />}
         {selectedNoticeForView && (
           <NoticeDetailModal 
             notice={selectedNoticeForView} 
