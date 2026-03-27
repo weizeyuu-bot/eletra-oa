@@ -1830,7 +1830,7 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请' }: { onBack: ()
   );
 };
 
-const TravelRequestForm = ({ onBack, title = '出差申请单' }: { onBack: () => void; title?: string }) => {
+const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser }: { onBack: () => void; title?: string; currentUser?: any }) => {
   const [needVehicle, setNeedVehicle] = useState(true);
   const [needBaggage, setNeedBaggage] = useState(true);
   const [needHotel, setNeedHotel] = useState(true);
@@ -1929,7 +1929,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单' }: { onBack: () =
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">姓名 (Nome Completo)</label>
                 <div className="relative">
-                  <input type="text" defaultValue="wyycst1120" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
+                  <input type="text" defaultValue={currentUser?.nickname || currentUser?.username || ''} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
                   <Search className="w-4 h-4 text-gray-300 absolute right-3 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
@@ -3548,7 +3548,7 @@ export default function App() {
                     case 'apps-hr-training': return <TrainingRequestForm {...props} title="培训申请" />;
                     case 'apps-hr-stamp': return <StampRequestForm {...props} title="用印申请" />;
                     case 'apps-hr-travel': 
-                    case 'travel-request': return <TravelRequestForm {...props} title="出差申请" />;
+                    case 'travel-request': return <TravelRequestForm {...props} title="出差申请" currentUser={currentUser} />;
                     case 'apps-finance-reimbursement': return <ReimbursementRequestForm {...props} title="报销申请" />;
                     case 'apps-finance-payment': return <PaymentRequestForm {...props} title="付款申请" />;
                     case 'apps-finance-invoice': return <InvoiceRequestForm {...props} title="开票申请" />;
