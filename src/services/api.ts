@@ -1,7 +1,25 @@
 import axios from 'axios';
 
-const API_BASE_URL =
-  (import.meta as any).env?.VITE_API_URL || 'http://172.19.96.1:3002/api';
+const env = (import.meta as any).env || {};
+
+const resolveApiBaseUrl = () => {
+  if (env.VITE_API_URL) {
+    return env.VITE_API_URL;
+  }
+
+  if (env.VITE_LAN_API_URL) {
+    return env.VITE_LAN_API_URL;
+  }
+
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') {
+    return 'http://localhost:3002/api';
+  }
+
+  return `http://${host}:3002/api`;
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
