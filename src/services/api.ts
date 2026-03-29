@@ -11,12 +11,9 @@ const resolveApiBaseUrl = () => {
     return env.VITE_LAN_API_URL;
   }
 
-  const host = window.location.hostname;
-  if (host === 'localhost' || host === '127.0.0.1') {
-    return 'http://localhost:3002/api';
-  }
-
-  return `http://${host}:3002/api`;
+  // 本地开发时通过 VITE_API_URL=http://localhost:3002/api 覆盖
+  // 无配置时默认使用后端机器的局域网 WiFi 网卡地址
+  return 'http://10.160.8.42:3002/api';
 };
 
 const API_BASE_URL = resolveApiBaseUrl();
