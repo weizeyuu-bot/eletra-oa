@@ -7,9 +7,12 @@ import {
   Strikethrough, Quote, Code, List, ListOrdered, 
   AlignLeft, AlignCenter, AlignRight, Type, Palette, 
   Eraser, Link as LinkIcon, Image as ImageIcon, Video as VideoIcon,
-  Paperclip, Camera
+  Paperclip, Camera, Eye, EyeOff
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { systemRoleService, type SystemRole } from '../services/systemRole';
+import { userService } from '../services/user';
+import { systemConfigService } from '../services/systemConfig';
 
 interface PageProps {
   title: string;
@@ -110,8 +113,12 @@ const UserModal = ({
   mode: 'add' | 'edit';
   initialData?: any;
 }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
+    password: '',
+    confirmPassword: '',
     nickname: '',
     dept: '',
     phone: '',
@@ -120,8 +127,12 @@ const UserModal = ({
 
   useEffect(() => {
     if (isOpen) {
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       setFormData({
         username: initialData?.username || '',
+        password: '',
+        confirmPassword: '',
         nickname: initialData?.nickname || '',
         dept: initialData?.dept || '',
         phone: initialData?.phone || '',
@@ -129,6 +140,22 @@ const UserModal = ({
       });
     }
   }, [isOpen, initialData]);
+
+  const getPasswordStrength = (password: string) => {
+    if (!password) return { level: 0, text: '未输入', color: 'bg-gray-200' };
+    let score = 0;
+    if (password.length >= 6) score += 1;
+    if (/[A-Za-z]/.test(password)) score += 1;
+    if (/\d/.test(password)) score += 1;
+    if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+    if (score <= 1) return { level: 1, text: '弱', color: 'bg-red-400' };
+    if (score <= 2) return { level: 2, text: '中', color: 'bg-yellow-400' };
+    if (score <= 3) return { level: 3, text: '良好', color: 'bg-blue-500' };
+    return { level: 4, text: '强', color: 'bg-green-500' };
+  };
+
+  const strength = getPasswordStrength(formData.password);
 
   if (!isOpen) return null;
 
@@ -159,6 +186,53 @@ const UserModal = ({
                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
                 placeholder="请输入用户账号"
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">登录密码</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? 'text' : 'password'} 
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  className="w-full px-4 py-2.5 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  placeholder={mode === 'add' ? '请输入登录密码' : '不修改请留空'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="space-y-1">
+                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${strength.color} transition-all`}
+                    style={{ width: `${strength.level * 25}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500">密码强度: {strength.text}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">确认密码</label>
+              <div className="relative">
+                <input 
+                  type={showConfirmPassword ? 'text' : 'password'} 
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                  className="w-full px-4 py-2.5 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  placeholder={mode === 'add' ? '请再次输入登录密码' : '修改密码时请再次确认'}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-700">用户昵称</label>
@@ -241,7 +315,7 @@ export const UserManagement = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Array<string | number>>([]);
 
   const handleAdd = () => {
     setModalMode('add');
@@ -262,30 +336,99 @@ export const UserManagement = ({
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string | number) => {
     if (window.confirm('确定要删除该用户吗？')) {
-      setUsers(users.filter(u => u.id !== id));
-      setSelectedIds(selectedIds.filter(sid => sid !== id));
+      userService.delete(String(id)).then(() => {
+        setUsers(users.filter(u => u.id !== id));
+        setSelectedIds(selectedIds.filter(sid => sid !== id));
+      }).catch(() => {
+        alert('删除失败');
+      });
     }
   };
 
   const handleBatchDelete = () => {
     if (selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个用户吗？`)) {
-      setUsers(users.filter(u => !selectedIds.includes(u.id)));
-      setSelectedIds([]);
+      Promise.all(selectedIds.map((id) => userService.delete(String(id)))).then(() => {
+        setUsers(users.filter(u => !selectedIds.includes(u.id)));
+        setSelectedIds([]);
+      }).catch(() => {
+        alert('批量删除失败');
+      });
     }
   };
 
-  const handleConfirm = (data: any) => {
+  const handleConfirm = async (data: any) => {
+    const passwordRule = /^(?=.*[A-Za-z])(?=.*\d).{6,}$/;
+    const hasPasswordInput = !!data.password?.trim() || !!data.confirmPassword?.trim();
+
+    if (modalMode === 'add' && !data.password?.trim()) {
+      alert('请输入登录密码');
+      return;
+    }
+
+    if (modalMode === 'add' && !data.confirmPassword?.trim()) {
+      alert('请确认登录密码');
+      return;
+    }
+
+    if ((modalMode === 'add' || hasPasswordInput) && data.password !== data.confirmPassword) {
+      alert('两次输入的密码不一致');
+      return;
+    }
+
+    if ((modalMode === 'add' || hasPasswordInput) && !passwordRule.test(data.password || '')) {
+      alert('密码至少6位，且需包含字母和数字');
+      return;
+    }
+
+    const submitData = { ...data };
+    delete submitData.confirmPassword;
+    if (modalMode === 'edit' && !submitData.password?.trim()) {
+      delete submitData.password;
+    }
+
     if (modalMode === 'add') {
-      const newUser = {
-        ...data,
-        id: Math.max(0, ...users.map(u => u.id)) + 1,
-        createTime: new Date().toLocaleString()
-      };
-      setUsers([...users, newUser]);
+      try {
+        const created = await userService.create({
+          username: submitData.username,
+          password: submitData.password,
+          nickname: submitData.nickname,
+          dept: submitData.dept,
+          phone: submitData.phone,
+          status: submitData.status,
+        });
+        const newUser = {
+          id: created.id,
+          username: created.username,
+          nickname: created.nickname || created.firstName || '',
+          dept: created.dept || '',
+          phone: created.phone || '',
+          status: created.status === 'ACTIVE' || created.status === true,
+          createTime: new Date(created.createdAt).toLocaleString(),
+        };
+        setUsers([...users, newUser]);
+      } catch (error) {
+        console.error(error);
+        const message = (error as any)?.response?.data?.message;
+        alert(typeof message === 'string' ? `新增用户失败：${message}` : '新增用户失败，请检查后端服务是否可用');
+        return;
+      }
     } else {
-      setUsers(users.map(u => u.id === selectedUser.id ? { ...u, ...data } : u));
+      try {
+        await userService.update(String(selectedUser.id), {
+          password: submitData.password,
+          nickname: submitData.nickname,
+          dept: submitData.dept,
+          phone: submitData.phone,
+          status: submitData.status,
+        });
+        setUsers(users.map(u => u.id === selectedUser.id ? { ...u, ...submitData } : u));
+      } catch (error) {
+        console.error(error);
+        alert('修改用户失败');
+        return;
+      }
     }
     setIsModalOpen(false);
   };
@@ -416,20 +559,44 @@ export const UserManagement = ({
 // 2. 角色管理
 export const RoleManagement = ({ title }: PageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRole, setEditingRole] = useState<any>(null);
+  const [editingRole, setEditingRole] = useState<SystemRole | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [roles, setRoles] = useState([
-    { id: 1, name: '超级管理员', key: 'admin', sort: 1, status: true, createTime: '2026-01-01 12:00:00' },
-    { id: 2, name: '普通角色', key: 'common', sort: 2, status: true, createTime: '2026-01-01 12:00:00' },
-  ]);
+  const [roles, setRoles] = useState<SystemRole[]>([]);
+  const [formData, setFormData] = useState({
+    name: '',
+    key: '',
+    sort: 0,
+    status: true,
+  });
+
+  const loadRoles = async () => {
+    try {
+      const data = await systemRoleService.getAll();
+      setRoles(data);
+    } catch (error) {
+      console.error('加载角色失败', error);
+      alert('加载角色失败，请确认后端已登录并可用');
+    }
+  };
+
+  useEffect(() => {
+    loadRoles();
+  }, []);
 
   const handleAdd = () => {
     setEditingRole(null);
+    setFormData({ name: '', key: '', sort: 0, status: true });
     setIsModalOpen(true);
   };
 
-  const handleEdit = (role: any) => {
+  const handleEdit = (role: SystemRole) => {
     setEditingRole(role);
+    setFormData({
+      name: role.name,
+      key: role.key,
+      sort: role.sort,
+      status: role.status,
+    });
     setIsModalOpen(true);
   };
 
@@ -440,17 +607,50 @@ export const RoleManagement = ({ title }: PageProps) => {
     }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('确定要删除该角色吗？')) {
-      setRoles(roles.filter(r => r.id !== id));
+      await systemRoleService.delete(id);
+      await loadRoles();
       setSelectedIds(selectedIds.filter(sid => sid !== id));
     }
   };
 
-  const handleBatchDelete = () => {
+  const handleBatchDelete = async () => {
     if (selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个角色吗？`)) {
-      setRoles(roles.filter(r => !selectedIds.includes(r.id)));
+      await Promise.all(selectedIds.map((id) => systemRoleService.delete(id)));
+      await loadRoles();
       setSelectedIds([]);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!formData.name.trim() || !formData.key.trim()) {
+      alert('请填写角色名称和权限字符');
+      return;
+    }
+
+    try {
+      if (editingRole) {
+        await systemRoleService.update(editingRole.id, {
+          name: formData.name,
+          key: formData.key,
+          sort: formData.sort,
+          status: formData.status,
+        });
+      } else {
+        await systemRoleService.create({
+          name: formData.name,
+          key: formData.key,
+          sort: formData.sort,
+          status: formData.status,
+        });
+      }
+      alert('保存成功');
+      setIsModalOpen(false);
+      await loadRoles();
+    } catch (error) {
+      console.error('保存角色失败', error);
+      alert('保存失败，请检查权限字符是否重复');
     }
   };
 
@@ -537,7 +737,7 @@ export const RoleManagement = ({ title }: PageProps) => {
                   <td className="px-6 py-4 text-gray-600">{role.key}</td>
                   <td className="px-6 py-4 text-gray-600">{role.sort}</td>
                   <td className="px-6 py-4"><StatusBadge status={role.status} /></td>
-                  <td className="px-6 py-4 text-gray-500 text-sm">{role.createTime}</td>
+                  <td className="px-6 py-4 text-gray-500 text-sm">{new Date(role.createdAt).toLocaleString()}</td>
                   <td className="px-6 py-4">
                     <div className="flex gap-3">
                       <button 
@@ -574,16 +774,20 @@ export const RoleManagement = ({ title }: PageProps) => {
             <div className="p-8 space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">角色名称</label>
-                <input type="text" defaultValue={editingRole?.name} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入角色名称" />
+                <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入角色名称" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">权限字符</label>
-                <input type="text" defaultValue={editingRole?.key} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入权限字符" />
+                <input type="text" value={formData.key} onChange={(e) => setFormData({ ...formData, key: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入权限字符" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">显示顺序</label>
+                <input type="number" value={formData.sort} onChange={(e) => setFormData({ ...formData, sort: Number(e.target.value) || 0 })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入显示顺序" />
               </div>
             </div>
             <div className="px-8 py-6 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl font-semibold hover:bg-gray-50">取消</button>
-              <button onClick={() => { alert('保存成功'); setIsModalOpen(false); }} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100">确定</button>
+              <button onClick={handleConfirm} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100">确定</button>
             </div>
           </motion.div>
         </div>
@@ -597,20 +801,62 @@ export const MenuManagement = ({ title }: PageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMenu, setEditingMenu] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [menus, setMenus] = useState([
-    { id: 1, name: '系统管理', sort: 1, permission: 'system', component: 'Layout', status: true, createTime: '2026-01-01 12:00:00' },
-    { id: 2, name: '用户管理', sort: 1, permission: 'system:user:list', component: 'system/user/index', status: true, createTime: '2026-01-01 12:00:00' },
-    { id: 3, name: '角色管理', sort: 2, permission: 'system:role:list', component: 'system/role/index', status: true, createTime: '2026-01-01 12:00:00' },
-  ]);
+  const [menus, setMenus] = useState<any[]>([]);
 
-  const handleAdd = () => {
-    setEditingMenu(null);
-    setIsModalOpen(true);
+  const loadMenus = async () => {
+    try {
+      const data = await systemConfigService.getMenus();
+      setMenus(data.map((m) => ({ ...m, createTime: new Date(m.createdAt).toLocaleString() })));
+    } catch (error) {
+      console.error('加载菜单失败:', error);
+    }
   };
 
-  const handleEdit = (menu: any) => {
-    setEditingMenu(menu);
-    setIsModalOpen(true);
+  useEffect(() => {
+    loadMenus();
+  }, []);
+
+  const handleAdd = async () => {
+    const name = window.prompt('请输入菜单名称');
+    if (!name) return;
+    const permission = window.prompt('请输入权限标识', 'system:menu:list') || '';
+    const component = window.prompt('请输入组件路径', 'system/menu/index') || '';
+    const sortValue = window.prompt('请输入排序', '1') || '1';
+
+    try {
+      await systemConfigService.createMenu({
+        name,
+        permission,
+        component,
+        sort: Number(sortValue) || 1,
+        status: true,
+      });
+      await loadMenus();
+    } catch (error) {
+      console.error('新增菜单失败:', error);
+      alert('新增菜单失败');
+    }
+  };
+
+  const handleEdit = async (menu: any) => {
+    const name = window.prompt('请输入菜单名称', menu.name);
+    if (!name) return;
+    const permission = window.prompt('请输入权限标识', menu.permission) || menu.permission;
+    const component = window.prompt('请输入组件路径', menu.component) || menu.component;
+    const sortValue = window.prompt('请输入排序', String(menu.sort)) || String(menu.sort);
+
+    try {
+      await systemConfigService.updateMenu(menu.id, {
+        name,
+        permission,
+        component,
+        sort: Number(sortValue) || menu.sort,
+      });
+      await loadMenus();
+    } catch (error) {
+      console.error('修改菜单失败:', error);
+      alert('修改菜单失败');
+    }
   };
 
   const handleHeaderEdit = () => {
@@ -620,17 +866,27 @@ export const MenuManagement = ({ title }: PageProps) => {
     }
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('确定要删除该菜单吗？')) {
-      setMenus(menus.filter(m => m.id !== id));
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('确定要删除该菜单吗？')) return;
+    try {
+      await systemConfigService.deleteMenu(id);
       setSelectedIds(selectedIds.filter(sid => sid !== id));
+      await loadMenus();
+    } catch (error) {
+      console.error('删除菜单失败:', error);
+      alert('删除菜单失败');
     }
   };
 
-  const handleBatchDelete = () => {
-    if (selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个菜单吗？`)) {
-      setMenus(menus.filter(m => !selectedIds.includes(m.id)));
+  const handleBatchDelete = async () => {
+    if (!(selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个菜单吗？`))) return;
+    try {
+      await Promise.all(selectedIds.map((id) => systemConfigService.deleteMenu(id)));
       setSelectedIds([]);
+      await loadMenus();
+    } catch (error) {
+      console.error('批量删除菜单失败:', error);
+      alert('批量删除菜单失败');
     }
   };
 
@@ -764,20 +1020,54 @@ export const DeptManagement = ({ title }: PageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [depts, setDepts] = useState([
-    { id: 1, name: '总公司', sort: 1, status: true, createTime: '2026-01-01 12:00:00' },
-    { id: 2, name: '研发部', sort: 1, status: true, createTime: '2026-01-01 12:00:00' },
-    { id: 3, name: '市场部', sort: 2, status: true, createTime: '2026-01-01 12:00:00' },
-  ]);
+  const [depts, setDepts] = useState<any[]>([]);
 
-  const handleAdd = () => {
-    setEditingDept(null);
-    setIsModalOpen(true);
+  const loadDepts = async () => {
+    try {
+      const data = await systemConfigService.getDepts();
+      setDepts(data.map((d) => ({ ...d, createTime: new Date(d.createdAt).toLocaleString() })));
+    } catch (error) {
+      console.error('加载部门失败:', error);
+    }
   };
 
-  const handleEdit = (dept: any) => {
-    setEditingDept(dept);
-    setIsModalOpen(true);
+  useEffect(() => {
+    loadDepts();
+  }, []);
+
+  const handleAdd = async () => {
+    const name = window.prompt('请输入部门名称');
+    if (!name) return;
+    const sortValue = window.prompt('请输入排序', '1') || '1';
+
+    try {
+      await systemConfigService.createDept({
+        name,
+        sort: Number(sortValue) || 1,
+        status: true,
+      });
+      await loadDepts();
+    } catch (error) {
+      console.error('新增部门失败:', error);
+      alert('新增部门失败');
+    }
+  };
+
+  const handleEdit = async (dept: any) => {
+    const name = window.prompt('请输入部门名称', dept.name);
+    if (!name) return;
+    const sortValue = window.prompt('请输入排序', String(dept.sort)) || String(dept.sort);
+
+    try {
+      await systemConfigService.updateDept(dept.id, {
+        name,
+        sort: Number(sortValue) || dept.sort,
+      });
+      await loadDepts();
+    } catch (error) {
+      console.error('修改部门失败:', error);
+      alert('修改部门失败');
+    }
   };
 
   const handleHeaderEdit = () => {
@@ -787,17 +1077,27 @@ export const DeptManagement = ({ title }: PageProps) => {
     }
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('确定要删除该部门吗？')) {
-      setDepts(depts.filter(d => d.id !== id));
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('确定要删除该部门吗？')) return;
+    try {
+      await systemConfigService.deleteDept(id);
       setSelectedIds(selectedIds.filter(sid => sid !== id));
+      await loadDepts();
+    } catch (error) {
+      console.error('删除部门失败:', error);
+      alert('删除部门失败');
     }
   };
 
-  const handleBatchDelete = () => {
-    if (selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个部门吗？`)) {
-      setDepts(depts.filter(d => !selectedIds.includes(d.id)));
+  const handleBatchDelete = async () => {
+    if (!(selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个部门吗？`))) return;
+    try {
+      await Promise.all(selectedIds.map((id) => systemConfigService.deleteDept(id)));
       setSelectedIds([]);
+      await loadDepts();
+    } catch (error) {
+      console.error('批量删除部门失败:', error);
+      alert('批量删除部门失败');
     }
   };
 
@@ -921,20 +1221,58 @@ export const PostManagement = ({ title }: PageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [posts, setPosts] = useState([
-    { id: 1, code: 'ceo', name: '董事长', sort: 1, status: true, createTime: '2026-01-01 12:00:00' },
-    { id: 2, code: 'se', name: '软件工程师', sort: 2, status: true, createTime: '2026-01-01 12:00:00' },
-    { id: 3, code: 'hr', name: '人事专员', sort: 3, status: true, createTime: '2026-01-01 12:00:00' },
-  ]);
+  const [posts, setPosts] = useState<any[]>([]);
 
-  const handleAdd = () => {
-    setEditingPost(null);
-    setIsModalOpen(true);
+  const loadPosts = async () => {
+    try {
+      const data = await systemConfigService.getPosts();
+      setPosts(data.map((p) => ({ ...p, createTime: new Date(p.createdAt).toLocaleString() })));
+    } catch (error) {
+      console.error('加载岗位失败:', error);
+    }
   };
 
-  const handleEdit = (post: any) => {
-    setEditingPost(post);
-    setIsModalOpen(true);
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const handleAdd = async () => {
+    const name = window.prompt('请输入岗位名称');
+    if (!name) return;
+    const code = window.prompt('请输入岗位编码', '') || '';
+    const sortValue = window.prompt('请输入排序', '1') || '1';
+
+    try {
+      await systemConfigService.createPost({
+        name,
+        code,
+        sort: Number(sortValue) || 1,
+        status: true,
+      });
+      await loadPosts();
+    } catch (error) {
+      console.error('新增岗位失败:', error);
+      alert('新增岗位失败');
+    }
+  };
+
+  const handleEdit = async (post: any) => {
+    const name = window.prompt('请输入岗位名称', post.name);
+    if (!name) return;
+    const code = window.prompt('请输入岗位编码', post.code) || post.code;
+    const sortValue = window.prompt('请输入排序', String(post.sort)) || String(post.sort);
+
+    try {
+      await systemConfigService.updatePost(post.id, {
+        name,
+        code,
+        sort: Number(sortValue) || post.sort,
+      });
+      await loadPosts();
+    } catch (error) {
+      console.error('修改岗位失败:', error);
+      alert('修改岗位失败');
+    }
   };
 
   const handleHeaderEdit = () => {
@@ -944,17 +1282,27 @@ export const PostManagement = ({ title }: PageProps) => {
     }
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('确定要删除该岗位吗？')) {
-      setPosts(posts.filter(p => p.id !== id));
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('确定要删除该岗位吗？')) return;
+    try {
+      await systemConfigService.deletePost(id);
       setSelectedIds(selectedIds.filter(sid => sid !== id));
+      await loadPosts();
+    } catch (error) {
+      console.error('删除岗位失败:', error);
+      alert('删除岗位失败');
     }
   };
 
-  const handleBatchDelete = () => {
-    if (selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个岗位吗？`)) {
-      setPosts(posts.filter(p => !selectedIds.includes(p.id)));
+  const handleBatchDelete = async () => {
+    if (!(selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个岗位吗？`))) return;
+    try {
+      await Promise.all(selectedIds.map((id) => systemConfigService.deletePost(id)));
       setSelectedIds([]);
+      await loadPosts();
+    } catch (error) {
+      console.error('批量删除岗位失败:', error);
+      alert('批量删除岗位失败');
     }
   };
 
@@ -1098,20 +1446,58 @@ export const DictManagement = ({ title }: PageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDict, setEditingDict] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [dicts, setDicts] = useState([
-    { id: 1, name: '出差事由', type: 'travel_reason', status: true, remark: '出差申请事由列表', createTime: '2026-01-01 12:00:00' },
-    { id: 2, name: '成本中心', type: 'cost_center', status: true, remark: '部门成本中心代码', createTime: '2026-01-01 12:00:00' },
-    { id: 3, name: '通知类型', type: 'sys_notice_type', status: true, remark: '通知公告类型', createTime: '2026-01-01 12:00:00' },
-  ]);
+  const [dicts, setDicts] = useState<any[]>([]);
 
-  const handleAdd = () => {
-    setEditingDict(null);
-    setIsModalOpen(true);
+  const loadDicts = async () => {
+    try {
+      const data = await systemConfigService.getDicts();
+      setDicts(data.map((d) => ({ ...d, createTime: new Date(d.createdAt).toLocaleString() })));
+    } catch (error) {
+      console.error('加载字典失败:', error);
+    }
   };
 
-  const handleEdit = (dict: any) => {
-    setEditingDict(dict);
-    setIsModalOpen(true);
+  useEffect(() => {
+    loadDicts();
+  }, []);
+
+  const handleAdd = async () => {
+    const name = window.prompt('请输入字典名称');
+    if (!name) return;
+    const type = window.prompt('请输入字典类型', 'sys_dict_type') || 'sys_dict_type';
+    const remark = window.prompt('请输入备注', '') || '';
+
+    try {
+      await systemConfigService.createDict({
+        name,
+        type,
+        remark,
+        status: true,
+      });
+      await loadDicts();
+    } catch (error) {
+      console.error('新增字典失败:', error);
+      alert('新增字典失败');
+    }
+  };
+
+  const handleEdit = async (dict: any) => {
+    const name = window.prompt('请输入字典名称', dict.name);
+    if (!name) return;
+    const type = window.prompt('请输入字典类型', dict.type) || dict.type;
+    const remark = window.prompt('请输入备注', dict.remark || '') || '';
+
+    try {
+      await systemConfigService.updateDict(dict.id, {
+        name,
+        type,
+        remark,
+      });
+      await loadDicts();
+    } catch (error) {
+      console.error('修改字典失败:', error);
+      alert('修改字典失败');
+    }
   };
 
   const handleHeaderEdit = () => {
@@ -1121,17 +1507,27 @@ export const DictManagement = ({ title }: PageProps) => {
     }
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('确定要删除该字典吗？')) {
-      setDicts(dicts.filter(d => d.id !== id));
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('确定要删除该字典吗？')) return;
+    try {
+      await systemConfigService.deleteDict(id);
       setSelectedIds(selectedIds.filter(sid => sid !== id));
+      await loadDicts();
+    } catch (error) {
+      console.error('删除字典失败:', error);
+      alert('删除字典失败');
     }
   };
 
-  const handleBatchDelete = () => {
-    if (selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个字典吗？`)) {
-      setDicts(dicts.filter(d => !selectedIds.includes(d.id)));
+  const handleBatchDelete = async () => {
+    if (!(selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个字典吗？`))) return;
+    try {
+      await Promise.all(selectedIds.map((id) => systemConfigService.deleteDict(id)));
       setSelectedIds([]);
+      await loadDicts();
+    } catch (error) {
+      console.error('批量删除字典失败:', error);
+      alert('批量删除字典失败');
     }
   };
 
@@ -1600,6 +1996,24 @@ export const NoticeManagement = ({ title, notices, setNotices, onMarkAsRead, onO
   const [selectedNotice, setSelectedNotice] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
+  const loadNotices = async () => {
+    try {
+      const data = await systemConfigService.getNotices();
+      setNotices(data.map((n) => ({
+        ...n,
+        createTime: new Date(n.createdAt).toLocaleString(),
+        isRead: n.isRead ?? false,
+        isNew: n.isNew ?? false,
+      })));
+    } catch (error) {
+      console.error('加载公告失败:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadNotices();
+  }, []);
+
   const handleAdd = () => {
     setModalMode('add');
     setSelectedNotice(null);
@@ -1612,20 +2026,48 @@ export const NoticeManagement = ({ title, notices, setNotices, onMarkAsRead, onO
     setIsModalOpen(true);
   };
 
-  const handleConfirm = (data: any) => {
-    if (modalMode === 'add') {
-      const newNotice = {
-        ...data,
-        id: notices.length + 1,
-        creator: 'admin',
-        createTime: new Date().toLocaleString(),
-        isNew: true
-      };
-      setNotices([newNotice, ...notices]);
-    } else {
-      setNotices(notices.map(n => n.id === selectedNotice.id ? { ...n, ...data } : n));
+  const handleConfirm = async (data: any) => {
+    try {
+      if (modalMode === 'add') {
+        await systemConfigService.createNotice({
+          ...data,
+          creator: 'admin',
+          isNew: true,
+          isRead: false,
+        });
+      } else if (selectedNotice) {
+        await systemConfigService.updateNotice(selectedNotice.id, data);
+      }
+      setIsModalOpen(false);
+      await loadNotices();
+    } catch (error) {
+      console.error('保存公告失败:', error);
+      alert('保存公告失败');
     }
-    setIsModalOpen(false);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('确定要删除该公告吗？')) return;
+    try {
+      await systemConfigService.deleteNotice(id);
+      setSelectedIds(selectedIds.filter(sid => sid !== id));
+      await loadNotices();
+    } catch (error) {
+      console.error('删除公告失败:', error);
+      alert('删除公告失败');
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (!(selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 条公告吗？`))) return;
+    try {
+      await Promise.all(selectedIds.map((id) => systemConfigService.deleteNotice(id)));
+      setSelectedIds([]);
+      await loadNotices();
+    } catch (error) {
+      console.error('批量删除公告失败:', error);
+      alert('批量删除公告失败');
+    }
   };
 
   const handleHeaderEdit = () => {
@@ -1685,7 +2127,15 @@ export const NoticeManagement = ({ title, notices, setNotices, onMarkAsRead, onO
             >
               <Edit2 className="w-4 h-4" /> 修改
             </button>
-            <button className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg font-medium hover:bg-red-100 transition-all flex items-center gap-2">
+            <button 
+              onClick={handleBatchDelete}
+              disabled={selectedIds.length === 0}
+              className={`px-4 py-2 border rounded-lg font-medium transition-all flex items-center gap-2 ${
+                selectedIds.length > 0
+                  ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
+                  : 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed opacity-60'
+              }`}
+            >
               <Trash2 className="w-4 h-4" /> 删除
             </button>
             <button className="px-4 py-2 bg-orange-50 text-orange-600 border border-orange-100 rounded-lg font-medium hover:bg-orange-100 transition-all flex items-center gap-2 ml-auto">
@@ -1770,7 +2220,10 @@ export const NoticeManagement = ({ title, notices, setNotices, onMarkAsRead, onO
                       >
                         <Edit2 className="w-3.5 h-3.5" /> 修改
                       </button>
-                      <button className="text-red-600 hover:text-red-700 font-medium text-sm flex items-center gap-1">
+                      <button 
+                        onClick={() => handleDelete(notice.id)}
+                        className="text-red-600 hover:text-red-700 font-medium text-sm flex items-center gap-1"
+                      >
                         <Trash2 className="w-3.5 h-3.5" /> 删除
                       </button>
                     </div>

@@ -1,12 +1,15 @@
 // 用户相关类型
 export interface User {
-  id: string;
+  id: string | number;
   email: string;
   username: string;
+  nickname?: string;
+  dept?: string;
+  phone?: string;
   firstName?: string;
   lastName?: string;
   role: 'ADMIN' | 'MANAGER' | 'APPROVER' | 'USER';
-  status: 'ACTIVE' | 'INACTIVE' | 'DELETED';
+  status: 'ACTIVE' | 'INACTIVE' | 'DELETED' | boolean;
   createdAt: string;
 }
 
@@ -20,7 +23,8 @@ export interface RegisterRequest {
 }
 
 export interface LoginRequest {
-  email: string;
+  email?: string;
+  username?: string;
   password: string;
 }
 

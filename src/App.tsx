@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard,
   Grid,
@@ -65,6 +65,8 @@ import {
   DeptManagement, PostManagement, DictManagement, 
   NoticeManagement 
 } from './components/SystemManagement';
+import { authService } from './services/auth';
+import { userService } from './services/user';
 
 // --- Types ---
 type Notice = {
@@ -4114,20 +4116,53 @@ export default function App() {
   const [workflowRequests, setWorkflowRequests] = useState<WorkflowRequest[]>(INITIAL_WORKFLOW_REQUESTS);
   const [selectedNoticeForView, setSelectedNoticeForView] = useState<Notice | null>(null);
 
-  const handleLogin = (username: string, password: string) => {
-    // For demo purposes, we'll check against our users list.
-    // In a real app, password would be checked on server.
-    // Here we assume password is '123456' for all users for simplicity, or just match username.
-    const user = users.find(u => u.username === username);
-    if (user) {
-      if (user.status) {
-        setIsAuthenticated(true);
-        setCurrentUser(user);
-      } else {
+  useEffect(() => {
+    userService.getAll()
+      .then((data) => {
+        const mapped = data.map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          nickname: u.nickname || u.firstName || '',
+          dept: u.dept || '',
+          phone: u.phone || '',
+          status: u.status === 'ACTIVE' || u.status === true,
+          createTime: new Date(u.createdAt).toLocaleString(),
+        }));
+        if (mapped.length > 0) {
+          setUsers(mapped);
+        }
+      })
+      .catch(() => {
+        // Keep local mock users when backend is unreachable.
+      });
+  }, []);
+
+  const handleLogin = async (username: string, password: string) => {
+    try {
+      const res = await authService.login({ username, password });
+      const localUser = users.find((u) => u.username === res.user.username);
+
+      if (localUser && !localUser.status) {
         alert('该账号已停用');
+        return;
       }
-    } else {
-      alert('用户名或密码错误');
+
+      setIsAuthenticated(true);
+      setCurrentUser({
+        id: res.user.id,
+        username: res.user.username,
+        nickname: localUser?.nickname || res.user.username,
+        dept: localUser?.dept || '',
+        phone: localUser?.phone || '',
+        status: true,
+      });
+    } catch (error: any) {
+      const message = error?.response?.data?.message;
+      if (typeof message === 'string') {
+        alert(`登录失败：${message}`);
+      } else {
+        alert('登录失败，请确认后端已启动并可用');
+      }
     }
   };
 

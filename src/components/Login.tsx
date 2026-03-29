@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Lock, User, ChevronRight } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: (username: string, password: string) => void;
+  onLogin: (username: string, password: string) => Promise<void> | void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -11,9 +11,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [autoLogin, setAutoLogin] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(username, password);
+    await onLogin(username, password);
   };
 
   return (

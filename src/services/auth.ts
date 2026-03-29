@@ -7,7 +7,12 @@ import {
 
 export const authService = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    const response = await api.post('/auth/login', data);
+    const payload = {
+      password: data.password,
+      ...(data.email ? { email: data.email } : {}),
+      ...(data.username ? { username: data.username } : {}),
+    };
+    const response = await api.post('/auth/login', payload);
     const { access_token, user } = response.data;
     localStorage.setItem('access_token', access_token);
     return response.data;

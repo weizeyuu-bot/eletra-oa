@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { expenseService, Expense } from '../services';
+import { expenseService } from '../services';
+import { Expense } from '../types';
 
 export const ExpenseDemo: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
