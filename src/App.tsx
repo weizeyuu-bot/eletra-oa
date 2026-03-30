@@ -581,6 +581,14 @@ const Workbench = ({
   const onlineChats = sortedChats.slice(0, 2);
   const totalOnlineUnread = chats.reduce((sum, chat) => sum + chat.unread, 0);
   const onlineUnreadBadge = totalOnlineUnread > 99 ? '99+' : String(totalOnlineUnread);
+  const quickWorkflowApps = [
+    { name: '出差申请', icon: Plane, color: 'bg-blue-500', action: () => setActivePage('apps-hr-travel') },
+    { name: '报销申请', icon: FileText, color: 'bg-orange-500', action: () => setActivePage('apps-finance-reimbursement') },
+    { name: '请假申请', icon: Calendar, color: 'bg-sky-500', action: () => setActivePage('apps-hr-leave') },
+    { name: '用印申请', icon: Stamp, color: 'bg-green-500', action: () => setActivePage('apps-hr-stamp') },
+    { name: '付款申请', icon: CreditCard, color: 'bg-indigo-600', action: () => setActivePage('apps-finance-payment') },
+    { name: '采购申请', icon: ShoppingCart, color: 'bg-purple-500', action: () => setActivePage('apps-supply-procurement') },
+  ];
   const handleOpenOnlineChat = () => {
     const target = sortedChats.find(chat => chat.unread > 0) || sortedChats[0];
     if (target) {
@@ -724,18 +732,20 @@ const Workbench = ({
           {/* New Workflow (Quick Access) */}
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-gray-800">流程新建</h3>
-              <Plus className="w-5 h-5 text-gray-400 cursor-pointer hover:text-blue-600" />
+              <div className="flex items-center gap-2">
+                <Workflow className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-gray-800">常用流程申请</h3>
+              </div>
+              <button
+                onClick={onOpenApps}
+                title="查看更多流程"
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-50 hover:text-blue-600 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              {[
-                { name: '报销', icon: FileText, color: 'bg-orange-500', action: () => setActivePage('apps-finance-reimbursement') },
-                { name: '用印', icon: Stamp, color: 'bg-green-500', action: () => setActivePage('apps-hr-stamp') },
-                { name: '请假', icon: Calendar, color: 'bg-blue-400', action: () => setActivePage('apps-hr-leave') },
-                { name: '付款', icon: CreditCard, color: 'bg-blue-600', action: () => setActivePage('apps-finance-payment') },
-                { name: '采购', icon: ShoppingCart, color: 'bg-purple-500', action: () => setActivePage('apps-supply-procurement') },
-                { name: '更多', icon: Grid, color: 'bg-gray-400', action: onOpenApps },
-              ].map((app) => (
+              {quickWorkflowApps.map((app) => (
                 <div key={app.name} onClick={app.action} className="flex flex-col items-center gap-2 cursor-pointer group">
                   <div className={`w-12 h-12 ${app.color} rounded-xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-sm`}>
                     <app.icon className="w-6 h-6" />
