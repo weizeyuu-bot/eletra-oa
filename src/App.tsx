@@ -132,6 +132,16 @@ type WorkflowRequest = {
   travelDetail?: TravelRequestDetail;
 };
 
+type ChatItem = {
+  id: number;
+  name: string;
+  lastMsg: string;
+  time: string;
+  unread: number;
+  type: 'group' | 'direct';
+  avatar: string;
+};
+
 const createDefaultTravelDetail = (applicant: string, dept: string): TravelRequestDetail => ({
   name: applicant,
   costCenter: dept || 'FISCAL ELETRA',
@@ -225,6 +235,40 @@ const INITIAL_WORKFLOW_REQUESTS: WorkflowRequest[] = [
     summary: '供应商货款支付申请',
   },
 ];
+
+const INITIAL_CHATS: ChatItem[] = [
+  { id: 1, name: '项目协作群', lastMsg: '王严严：报销单已提交，请查收', time: '14:20', unread: 2, type: 'group', avatar: '项' },
+  { id: 2, name: '李明 (财务)', lastMsg: '好的，收到', time: '10:05', unread: 0, type: 'direct', avatar: '李' },
+  { id: 3, name: '供应链管理群', lastMsg: '张三：采购申请已通过', time: '昨天', unread: 0, type: 'group', avatar: '供' },
+  { id: 4, name: '王五 (行政)', lastMsg: '用印申请已审批', time: '昨天', unread: 1, type: 'direct', avatar: '王' },
+];
+
+const getChatTimeRank = (time: string) => {
+  const now = new Date();
+  const hhmm = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(time);
+  if (hhmm) {
+    const date = new Date(now);
+    date.setHours(Number(hhmm[1]), Number(hhmm[2]), 0, 0);
+    return date.getTime();
+  }
+
+  if (time.includes('昨天')) {
+    return now.getTime() - 24 * 60 * 60 * 1000;
+  }
+
+  const parsed = Date.parse(time.replace(/\//g, '-'));
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const sortChatsByUnreadAndTime = (items: ChatItem[]) => {
+  return [...items].sort((a, b) => {
+    const unreadDelta = Number(b.unread > 0) - Number(a.unread > 0);
+    if (unreadDelta !== 0) {
+      return unreadDelta;
+    }
+    return getChatTimeRank(b.time) - getChatTimeRank(a.time);
+  });
+};
 
 const ORG_STRUCTURE = [
   { name: '总经办', count: 5, children: [] },
@@ -513,6 +557,8 @@ const Workbench = ({
   onOpenNotice,
   currentUser,
   workflowRequests,
+  chats,
+  onOpenChat,
 }: { 
   onOpenForm: () => void; 
   onOpenApps: () => void; 
@@ -523,12 +569,36 @@ const Workbench = ({
   onOpenNotice: (notice: Notice) => void;
   currentUser: any;
   workflowRequests: WorkflowRequest[];
+  chats: ChatItem[];
+  onOpenChat: (chatId: number) => void;
 }) => {
   const currentDisplayName = currentUser?.nickname || currentUser?.username || '管理员';
   const pendingCount = workflowRequests.filter(item => item.status === '待审批').length;
   const draftCount = workflowRequests.filter(item => item.status === '草稿').length;
   const unreadCount = workflowRequests.filter(item => item.status === '待阅').length;
   const submittedCount = workflowRequests.filter(item => item.applicant === currentDisplayName).length;
+  const sortedChats = sortChatsByUnreadAndTime(chats);
+  const onlineChats = sortedChats.slice(0, 2);
+  const totalOnlineUnread = chats.reduce((sum, chat) => sum + chat.unread, 0);
+  const onlineUnreadBadge = totalOnlineUnread > 99 ? '99+' : String(totalOnlineUnread);
+  const handleOpenOnlineChat = () => {
+    const target = sortedChats.find(chat => chat.unread > 0) || sortedChats[0];
+    if (target) {
+      onOpenChat(target.id);
+      return;
+    }
+    setActivePage('chat');
+  };
+  const noticePageSize = 10;
+  const activeNotices = notices.filter(n => n.status);
+  const totalNoticePages = Math.max(1, Math.ceil(activeNotices.length / noticePageSize));
+  const [noticePage, setNoticePage] = useState(1);
+
+  useEffect(() => {
+    setNoticePage(prev => Math.min(prev, totalNoticePages));
+  }, [totalNoticePages]);
+
+  const pagedNotices = activeNotices.slice((noticePage - 1) * noticePageSize, noticePage * noticePageSize);
 
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto">
@@ -555,7 +625,7 @@ const Workbench = ({
               </button>
             </div>
             <div className="space-y-4">
-              {notices.filter(n => n.status).slice(0, 5).map((item) => (
+              {pagedNotices.map((item) => (
                 <div 
                   key={item.id} 
                   onClick={() => {
@@ -582,6 +652,41 @@ const Workbench = ({
                   <span className="text-xs text-gray-400 shrink-0">{item.createTime.split(' ')[0]}</span>
                 </div>
               ))}
+
+              {activeNotices.length === 0 && (
+                <div className="text-sm text-gray-400 text-center py-8">暂无公告数据</div>
+              )}
+
+              {activeNotices.length > 0 && (
+                <div className="pt-2 flex items-center justify-between text-xs text-gray-400">
+                  <span>共 {activeNotices.length} 条，第 {noticePage}/{totalNoticePages} 页</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setNoticePage(prev => Math.max(1, prev - 1))}
+                      disabled={noticePage === 1}
+                      className="px-2 py-1 rounded border border-gray-200 disabled:opacity-40 disabled:cursor-not-allowed hover:text-blue-600"
+                    >
+                      上一页
+                    </button>
+                    {Array.from({ length: totalNoticePages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => setNoticePage(page)}
+                        className={`px-2 py-1 rounded border ${noticePage === page ? 'border-blue-200 text-blue-600 bg-blue-50' : 'border-gray-200 hover:text-blue-600'}`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setNoticePage(prev => Math.min(totalNoticePages, prev + 1))}
+                      disabled={noticePage === totalNoticePages}
+                      className="px-2 py-1 rounded border border-gray-200 disabled:opacity-40 disabled:cursor-not-allowed hover:text-blue-600"
+                    >
+                      下一页
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -612,37 +717,6 @@ const Workbench = ({
             </div>
           </div>
 
-          {/* Approval Groups Widget */}
-          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-red-500" />
-                <h3 className="font-bold text-gray-800">审批组</h3>
-              </div>
-              <button onClick={() => onOpenApprovals('pending')} className="text-gray-400 text-sm hover:text-blue-600 flex items-center gap-1">
-                管理 <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { name: '财务审批', role: '费用审核', icon: CreditCard, color: 'text-orange-500' },
-                { name: '行政审批', role: '印章管理', icon: Stamp, color: 'text-green-500' },
-                { name: '技术审批', role: '资源申请', icon: Layers, color: 'text-blue-500' },
-              ].map((group) => (
-                <div key={group.name} className="p-4 border border-gray-50 rounded-2xl hover:border-blue-100 hover:bg-blue-50/30 transition-all cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center ${group.color}`}>
-                      <group.icon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-gray-800">{group.name}</div>
-                      <div className="text-[10px] text-gray-400">{group.role}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Right Column: Quick Actions & Communication */}
@@ -673,29 +747,33 @@ const Workbench = ({
           </div>
 
           {/* Online Communication */}
-          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+          <div onClick={handleOpenOnlineChat} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm cursor-pointer">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-indigo-500" />
-                <h3 className="font-bold text-gray-800">在线沟通</h3>
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                  在线沟通
+                  {totalOnlineUnread > 0 && (
+                    <span className="min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] leading-5 text-center font-bold">
+                      {onlineUnreadBadge}
+                    </span>
+                  )}
+                </h3>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setActivePage('chat')} title="发消息" className="p-1.5 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-indigo-600 transition-colors">
+                <button onClick={(e) => { e.stopPropagation(); handleOpenOnlineChat(); }} title="发消息" className="p-1.5 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-indigo-600 transition-colors">
                   <Send className="w-4 h-4" />
                 </button>
-                <button onClick={() => setActivePage('chat')} title="建群组" className="p-1.5 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-indigo-600 transition-colors">
+                <button onClick={(e) => { e.stopPropagation(); handleOpenOnlineChat(); }} title="建群组" className="p-1.5 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-indigo-600 transition-colors">
                   <Users2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
             <div className="space-y-4">
-              {[
-                { name: '项目协作群', lastMsg: '王严严：报销单已提交，请查收', time: '14:20', unread: 2 },
-                { name: '李明 (财务)', lastMsg: '好的，收到', time: '10:05', unread: 0 },
-              ].map((chat) => (
-                <div key={chat.name} onClick={() => setActivePage('chat')} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors">
+              {onlineChats.map((chat) => (
+                <div key={chat.id} onClick={(e) => { e.stopPropagation(); onOpenChat(chat.id); }} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors">
                   <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xs">
-                    {chat.name[0]}
+                    {chat.avatar}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center">
@@ -838,13 +916,19 @@ const AppCenter = ({ setActivePage, categoryFilter }: { setActivePage: (p: Page)
   );
 };
 
-const Chat = () => {
-  const [chats, setChats] = useState([
-    { id: 1, name: '项目协作群', lastMsg: '王严严：报销单已提交，请查收', time: '14:20', unread: 2, type: 'group', avatar: '项' },
-    { id: 2, name: '李明 (财务)', lastMsg: '好的，收到', time: '10:05', unread: 0, type: 'direct', avatar: '李' },
-    { id: 3, name: '供应链管理群', lastMsg: '张三：采购申请已通过', time: '昨天', unread: 0, type: 'group', avatar: '供' },
-    { id: 4, name: '王五 (行政)', lastMsg: '用印申请已审批', time: '昨天', unread: 1, type: 'direct', avatar: '王' },
-  ]);
+const Chat = ({
+  chats,
+  setChats,
+  activeChatId,
+  setActiveChatId,
+  onClose,
+}: {
+  chats: ChatItem[];
+  setChats: React.Dispatch<React.SetStateAction<ChatItem[]>>;
+  activeChatId: number;
+  setActiveChatId: React.Dispatch<React.SetStateAction<number>>;
+  onClose: () => void;
+}) => {
 
   const initMessages: Record<number, { sender: string; content: string; self: boolean; time: string; fileUrl?: string; fileName?: string; fileSize?: string }[]> = {
     1: [
@@ -863,7 +947,7 @@ const Chat = () => {
     ],
   };
 
-  const [selectedChat, setSelectedChat] = useState(chats[0]);
+  const [selectedChatId, setSelectedChatId] = useState(activeChatId || chats[0]?.id || 0);
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [chatMessages, setChatMessages] = useState(initMessages);
@@ -873,6 +957,38 @@ const Chat = () => {
   const docInputRef = useRef<HTMLInputElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (activeChatId) {
+      setSelectedChatId(activeChatId);
+    }
+  }, [activeChatId]);
+
+  useEffect(() => {
+    if (chats.length === 0) return;
+    const exists = chats.some(c => c.id === selectedChatId);
+    if (!exists) {
+      setSelectedChatId(chats[0].id);
+    }
+  }, [chats, selectedChatId]);
+
+  const selectedChat = chats.find(c => c.id === selectedChatId) || chats[0];
+
+  useEffect(() => {
+    if (!selectedChat) return;
+    setActiveChatId(selectedChat.id);
+    setChats(prev => {
+      let changed = false;
+      const next = prev.map(c => {
+        if (c.id === selectedChat.id && c.unread > 0) {
+          changed = true;
+          return { ...c, unread: 0 };
+        }
+        return c;
+      });
+      return changed ? next : prev;
+    });
+  }, [selectedChat, setActiveChatId, setChats]);
 
   React.useEffect(() => {
     if (!showEmojiPicker) return;
@@ -902,6 +1018,7 @@ const Chat = () => {
     const fileUrl = URL.createObjectURL(file);
     const sizeKB = (file.size / 1024);
     const fileSize = sizeKB >= 1024 ? `${(sizeKB/1024).toFixed(1)} MB` : `${sizeKB.toFixed(0)} KB`;
+    if (!selectedChat) return;
     setChatMessages(prev => ({
       ...prev,
       [selectedChat.id]: [...(prev[selectedChat.id] || []), {
@@ -918,6 +1035,7 @@ const Chat = () => {
     if (!text) return;
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+    if (!selectedChat) return;
     setChatMessages(prev => ({
       ...prev,
       [selectedChat.id]: [...(prev[selectedChat.id] || []), { sender: '我', content: text, self: true, time }],
@@ -970,15 +1088,18 @@ const Chat = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {chats.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.lastMsg.toLowerCase().includes(searchQuery.toLowerCase())).map((chat) => (
+          {sortChatsByUnreadAndTime(chats)
+            .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.lastMsg.toLowerCase().includes(searchQuery.toLowerCase()))
+            .map((chat) => (
             <div
               key={chat.id}
               onClick={() => {
-                setSelectedChat(chat);
+                setSelectedChatId(chat.id);
+                setActiveChatId(chat.id);
                 setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unread: 0 } : c));
               }}
               className={`p-4 flex items-center gap-3 cursor-pointer transition-colors ${
-                selectedChat.id === chat.id ? 'bg-blue-50/50' : 'hover:bg-gray-50'
+                selectedChat?.id === chat.id ? 'bg-blue-50/50' : 'hover:bg-gray-50'
               }`}
             >
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-sm ${
@@ -1007,6 +1128,10 @@ const Chat = () => {
 
       {/* Chat Window */}
       <div className="flex-1 flex flex-col bg-gray-50/30">
+        {!selectedChat ? (
+          <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">暂无会话</div>
+        ) : (
+          <>
         {/* Header */}
         <div className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6">
           <div className="flex items-center gap-3">
@@ -1027,6 +1152,13 @@ const Chat = () => {
             <Phone className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
             <Video className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
             <MoreHorizontal className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
+            <button
+              onClick={onClose}
+              title="关闭并返回首页"
+              className="p-1.5 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
@@ -1148,6 +1280,8 @@ const Chat = () => {
             </button>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -4114,6 +4248,8 @@ export default function App() {
   const [showForm, setShowForm] = useState(false);
   const [notices, setNotices] = useState<Notice[]>(INITIAL_NOTICES);
   const [workflowRequests, setWorkflowRequests] = useState<WorkflowRequest[]>(INITIAL_WORKFLOW_REQUESTS);
+  const [chats, setChats] = useState<ChatItem[]>(INITIAL_CHATS);
+  const [activeChatId, setActiveChatId] = useState<number>(INITIAL_CHATS[0]?.id || 0);
   const [selectedNoticeForView, setSelectedNoticeForView] = useState<Notice | null>(null);
 
   useEffect(() => {
@@ -4179,6 +4315,12 @@ export default function App() {
   const handleOpenApprovals = (tab: WorkflowTab) => {
     setApprovalTab(tab);
     setActivePage('approvals');
+  };
+
+  const handleOpenChat = (chatId: number) => {
+    setActiveChatId(chatId);
+    setChats(prev => prev.map(c => c.id === chatId ? { ...c, unread: 0 } : c));
+    setActivePage('chat');
   };
 
   const handleSubmitWorkflow = (type: string) => {
@@ -4259,6 +4401,8 @@ export default function App() {
                   onOpenNotice={(n) => setSelectedNoticeForView(n)}
                   currentUser={currentUser}
                   workflowRequests={workflowRequests}
+                  chats={chats}
+                  onOpenChat={handleOpenChat}
                 />
               </motion.div>
             )}
@@ -4346,7 +4490,13 @@ export default function App() {
                 exit={{ opacity: 0, x: 10 }}
                 className="h-full"
               >
-                <Chat />
+                <Chat
+                  chats={chats}
+                  setChats={setChats}
+                  activeChatId={activeChatId}
+                  setActiveChatId={setActiveChatId}
+                  onClose={() => setActivePage('workbench')}
+                />
               </motion.div>
             )}
             {(activePage === 'reports' || activePage.startsWith('reports-')) && (
