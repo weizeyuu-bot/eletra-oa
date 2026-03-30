@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard,
   Grid,
@@ -59,7 +59,6 @@ import {
   Book,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useI18n } from './i18n/index';
 import { Login } from './components/Login';
 import { 
   UserManagement, RoleManagement, MenuManagement, 
@@ -67,10 +66,7 @@ import {
   NoticeManagement 
 } from './components/SystemManagement';
 import { authService } from './services/auth';
-import api from './services/api';
 import { userService } from './services/user';
-import { workflowService } from './services/workflow';
-import { systemConfigService } from './services/systemConfig';
 
 // --- Types ---
 type Notice = {
@@ -144,6 +140,8 @@ type ChatItem = {
   unread: number;
   type: 'group' | 'direct';
   avatar: string;
+  userAccount?: string;
+  signature?: string;
 };
 
 const createDefaultTravelDetail = (applicant: string, dept: string): TravelRequestDetail => ({
@@ -190,28 +188,6 @@ const INITIAL_NOTICES: Notice[] = [
   { id: 1, title: '关于2026年春节放假安排的通知', type: '通知', status: true, creator: 'admin', createTime: '2026-01-15 10:00:00', content: '新版本内容' },
   { id: 2, title: '系统维护升级公告', type: '公告', status: true, creator: 'admin', createTime: '2026-02-20 18:00:00', content: '系统维护升级公告内容' },
   { id: 3, title: '新员工入职培训指南', type: '通知', status: false, creator: 'admin', createTime: '2026-03-01 09:00:00', content: '新员工入职培训指南内容' },
-];
-
-const DEFAULT_EXPENSE_CATEGORY_OPTIONS = [
-  '差旅费 (Viagens)',
-  '招待费 (Entretenimento)',
-  '办公费 (Escritório)',
-  '通讯费 (Comunicação)',
-  '其他 (Outros)',
-];
-
-const DEFAULT_BANK_OPTIONS = [
-  'Banco do Brasil',
-  'Itaú Unibanco',
-  'Bradesco',
-  'Caixa Econômica Federal',
-];
-
-const DEFAULT_PAYMENT_METHOD_OPTIONS = [
-  '银行转账 (Transferência)',
-  '支票 (Cheque)',
-  '现金 (Dinheiro)',
-  'PIX',
 ];
 
 const INITIAL_WORKFLOW_REQUESTS: WorkflowRequest[] = [
@@ -263,11 +239,121 @@ const INITIAL_WORKFLOW_REQUESTS: WorkflowRequest[] = [
 ];
 
 const INITIAL_CHATS: ChatItem[] = [
-  { id: 1, name: '项目协作群', lastMsg: '王严严：报销单已提交，请查收', time: '14:20', unread: 2, type: 'group', avatar: '项' },
-  { id: 2, name: '李明 (财务)', lastMsg: '好的，收到', time: '10:05', unread: 0, type: 'direct', avatar: '李' },
-  { id: 3, name: '供应链管理群', lastMsg: '张三：采购申请已通过', time: '昨天', unread: 0, type: 'group', avatar: '供' },
-  { id: 4, name: '王五 (行政)', lastMsg: '用印申请已审批', time: '昨天', unread: 1, type: 'direct', avatar: '王' },
+  { id: 1, name: '项目协作群', lastMsg: '王严严：报销单已提交，请查收', time: '14:20', unread: 2, type: 'group', avatar: '项', signature: '报销节点处理中' },
+  { id: 2, name: '李明 (财务)', lastMsg: '好的，收到', time: '10:05', unread: 0, type: 'direct', avatar: '李', userAccount: 'lisi', signature: '我在出差' },
+  { id: 3, name: '供应链管理群', lastMsg: '张三：采购申请已通过', time: '昨天', unread: 0, type: 'group', avatar: '供', signature: '采购流程同步中' },
+  { id: 4, name: '王五 (行政)', lastMsg: '用印申请已审批', time: '昨天', unread: 1, type: 'direct', avatar: '王', userAccount: 'wangwu', signature: '请假中' },
 ];
+
+const CHAT_SIGNATURE_PRESETS = ['我在出差', '请假中', '开会中', '外出办事', '居家办公'];
+const CHAT_SIGNATURES_STORAGE_KEY = 'eletra-chat-signatures';
+const ONLINE_USERS_STORAGE_KEY = 'eletra-online-users';
+const USER_AVATAR_STORAGE_PREFIX = 'eletra-user-avatar-';
+const USER_STATUS_STORAGE_PREFIX = 'eletra-user-status-';
+
+const normalizeAccount = (value?: string) => String(value || '').trim().toLowerCase();
+
+const getOnlineUsersFromStorage = (): string[] => {
+  try {
+    const raw = window.localStorage.getItem(ONLINE_USERS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item) => normalizeAccount(String(item))).filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+const saveOnlineUsersToStorage = (users: string[]) => {
+  try {
+    window.localStorage.setItem(ONLINE_USERS_STORAGE_KEY, JSON.stringify(Array.from(new Set(users))));
+  } catch {
+    // Ignore storage write failures.
+  }
+};
+
+const markUserOnline = (username?: string) => {
+  const normalized = normalizeAccount(username);
+  if (!normalized) return;
+  const users = getOnlineUsersFromStorage();
+  if (!users.includes(normalized)) {
+    saveOnlineUsersToStorage([...users, normalized]);
+  }
+};
+
+const markUserOffline = (username?: string) => {
+  const normalized = normalizeAccount(username);
+  if (!normalized) return;
+  const users = getOnlineUsersFromStorage();
+  saveOnlineUsersToStorage(users.filter((item) => item !== normalized));
+};
+
+const getSignaturesFromStorage = (): Record<number, string> => {
+  try {
+    const raw = window.localStorage.getItem(CHAT_SIGNATURES_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return Object.entries(parsed || {}).reduce((acc, [key, value]) => {
+      const id = Number(key);
+      if (!Number.isNaN(id)) {
+        acc[id] = String(value || '').trim() || '状态未设置';
+      }
+      return acc;
+    }, {} as Record<number, string>);
+  } catch {
+    return {};
+  }
+};
+
+const saveSignaturesToStorage = (signatures: Record<number, string>) => {
+  try {
+    window.localStorage.setItem(CHAT_SIGNATURES_STORAGE_KEY, JSON.stringify(signatures));
+  } catch {
+    // Ignore storage write failures.
+  }
+};
+
+const getUserAvatarFromStorage = (username?: string): string => {
+  const normalized = normalizeAccount(username);
+  if (!normalized) return '';
+  try {
+    return window.localStorage.getItem(`${USER_AVATAR_STORAGE_PREFIX}${normalized}`) || '';
+  } catch {
+    return '';
+  }
+};
+
+const saveUserAvatarToStorage = (username: string | undefined, avatarDataUrl: string) => {
+  const normalized = normalizeAccount(username);
+  if (!normalized) throw new Error('用户名无效，无法保存头像');
+  try {
+    window.localStorage.setItem(`${USER_AVATAR_STORAGE_PREFIX}${normalized}`, avatarDataUrl);
+  } catch (e) {
+    throw new Error('localStorage写入失败');
+  }
+};
+
+const getUserStatusFromStorage = (username?: string): string => {
+  const normalized = normalizeAccount(username);
+  if (!normalized) return '状态未设置';
+  try {
+    const value = window.localStorage.getItem(`${USER_STATUS_STORAGE_PREFIX}${normalized}`) || '';
+    return value.trim() || '状态未设置';
+  } catch {
+    return '状态未设置';
+  }
+};
+
+const saveUserStatusToStorage = (username: string | undefined, statusText: string) => {
+  const normalized = normalizeAccount(username);
+  if (!normalized) return;
+  try {
+    window.localStorage.setItem(`${USER_STATUS_STORAGE_PREFIX}${normalized}`, statusText.trim() || '状态未设置');
+  } catch {
+    // Ignore storage write failures.
+  }
+};
 
 const getChatTimeRank = (time: string) => {
   const now = new Date();
@@ -284,6 +370,55 @@ const getChatTimeRank = (time: string) => {
 
   const parsed = Date.parse(time.replace(/\//g, '-'));
   return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+// 简单 BMP (24-bit, 未压缩) 解析为 DataURL 的实现，用作浏览器无法直接解码 BMP 的回退方案。
+const parseBmpArrayBufferToDataUrl = (buffer: ArrayBuffer): string => {
+  const dv = new DataView(buffer);
+  // BMP signature
+  if (dv.getUint16(0, true) !== 0x4D42) throw new Error('不是有效的 BMP 文件');
+  const fileSize = dv.getUint32(2, true);
+  const pixelDataOffset = dv.getUint32(10, true);
+  const dibHeaderSize = dv.getUint32(14, true);
+  const width = dv.getInt32(18, true);
+  const height = dv.getInt32(22, true);
+  const planes = dv.getUint16(26, true);
+  const bpp = dv.getUint16(28, true);
+  const compression = dv.getUint32(30, true);
+  if (bpp !== 24 || compression !== 0) throw new Error('仅支持 24-bit 未压缩 BMP');
+
+  const rowSize = Math.floor((bpp * width + 31) / 32) * 4;
+  const imageSize = rowSize * Math.abs(height);
+  const pixelArray = new Uint8ClampedArray(width * Math.abs(height) * 4);
+
+  const isBottomUp = height > 0;
+  const absHeight = Math.abs(height);
+
+  for (let y = 0; y < absHeight; y++) {
+    const srcY = isBottomUp ? (absHeight - 1 - y) : y;
+    const rowStart = pixelDataOffset + srcY * rowSize;
+    for (let x = 0; x < width; x++) {
+      const pxStart = rowStart + x * 3;
+      const b = dv.getUint8(pxStart);
+      const g = dv.getUint8(pxStart + 1);
+      const r = dv.getUint8(pxStart + 2);
+      const dstIdx = (y * width + x) * 4;
+      pixelArray[dstIdx] = r;
+      pixelArray[dstIdx + 1] = g;
+      pixelArray[dstIdx + 2] = b;
+      pixelArray[dstIdx + 3] = 255;
+    }
+  }
+
+  // 绘制到 canvas 转为 dataURL
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = absHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('无法创建画布上下文');
+  const imgData = new ImageData(pixelArray, width, absHeight);
+  ctx.putImageData(imgData, 0, 0);
+  return canvas.toDataURL('image/png');
 };
 
 const sortChatsByUnreadAndTime = (items: ChatItem[]) => {
@@ -303,129 +438,9 @@ const ORG_STRUCTURE = [
   { name: '财务部', count: 8, children: [] },
 ];
 
-type SearchTarget = {
-  id: Page;
-  label: string;
-  keywords?: string[];
-};
-
-type SearchGroup = '流程申请' | '报表分析' | '系统设置' | '协作沟通' | '其他';
-
-const SEARCH_TARGETS: SearchTarget[] = [
-  { id: 'workbench', label: '门户首页', keywords: ['首页', '工作台', 'home'] },
-  { id: 'approvals', label: '流程待办', keywords: ['待办', '审批', 'daiban', 'shenpi'] },
-  { id: 'apps', label: '单据申请', keywords: ['申请中心', 'shenqing'] },
-  { id: 'apps-hr-travel', label: '出差申请', keywords: ['差旅', 'chuchai'] },
-  { id: 'apps-hr-leave', label: '请假申请', keywords: ['休假', 'qingjia'] },
-  { id: 'apps-hr-training', label: '培训申请', keywords: ['培训', 'peixun'] },
-  { id: 'apps-hr-stamp', label: '用印申请', keywords: ['盖章', 'yongyin'] },
-  { id: 'apps-finance-reimbursement', label: '报销申请', keywords: ['费用报销', 'baoxiao'] },
-  { id: 'apps-finance-payment', label: '付款申请', keywords: ['付款', 'fukuan'] },
-  { id: 'apps-finance-invoice', label: '发票申请', keywords: ['开票', 'fapiao'] },
-  { id: 'apps-supply-procurement', label: '采购申请', keywords: ['采购', 'caigou'] },
-  { id: 'apps-supply-requisition', label: '领用申请', keywords: ['领料', 'lingyong'] },
-  { id: 'chat', label: '在线沟通', keywords: ['聊天', '消息', 'chat'] },
-  { id: 'contacts', label: '通讯录', keywords: ['同事', '联系人', 'tongxunlu'] },
-  { id: 'reports', label: '报表中心', keywords: ['报表', 'baobiao'] },
-  { id: 'reports-hr-travel', label: '出差申请查询表', keywords: ['出差查询', 'chuchai'] },
-  { id: 'reports-hr-attendance', label: '考勤月度汇总表', keywords: ['考勤', 'kaoqin'] },
-  { id: 'reports-finance-expense', label: '费用报销统计表', keywords: ['报销统计', 'baoxiao'] },
-  { id: 'reports-supply-procurement', label: '采购执行明细表', keywords: ['采购明细', 'caigou'] },
-  { id: 'sys-user', label: '用户管理', keywords: ['系统用户'] },
-  { id: 'sys-role', label: '角色管理', keywords: ['权限角色'] },
-  { id: 'sys-menu', label: '菜单管理', keywords: ['菜单配置'] },
-  { id: 'sys-dept', label: '部门管理', keywords: ['组织架构'] },
-  { id: 'sys-post', label: '岗位管理', keywords: ['岗位'] },
-  { id: 'sys-dict', label: '字典管理', keywords: ['字典'] },
-  { id: 'sys-notice', label: '通知公告管理', keywords: ['公告'] },
-  { id: 'workflow-config', label: '流程配置', keywords: ['流程设置'] },
-  { id: 'workflow-travel', label: '出差申请流程', keywords: ['出差流程'] },
-  { id: 'workflow-expense', label: '费用报销流程', keywords: ['报销流程'] },
-  { id: 'workflow-seal', label: '用印申请流程', keywords: ['用印流程'] },
-  { id: 'workflow-procurement', label: '采购申请流程', keywords: ['采购流程'] },
-  { id: 'fav', label: '我的收藏', keywords: ['收藏'] },
-];
-
-const normalizeSearchText = (value: string) => value.toLowerCase().replace(/\s+/g, '');
-
-const isSubsequenceMatch = (target: string, query: string) => {
-  let qi = 0;
-  for (let ti = 0; ti < target.length && qi < query.length; ti += 1) {
-    if (target[ti] === query[qi]) qi += 1;
-  }
-  return qi === query.length;
-};
-
-const fuzzySearchTargets = (targets: SearchTarget[], query: string) => {
-  const normalizedQuery = normalizeSearchText(query);
-  if (!normalizedQuery) return [];
-
-  return targets
-    .map((target) => {
-      const tokens = [target.label, ...(target.keywords || [])].map(normalizeSearchText);
-      let score = Number.MAX_SAFE_INTEGER;
-
-      for (const token of tokens) {
-        if (!token) continue;
-
-        if (token === normalizedQuery) {
-          score = Math.min(score, 0);
-          continue;
-        }
-
-        if (token.includes(normalizedQuery)) {
-          score = Math.min(score, 1 + Math.max(0, token.length - normalizedQuery.length));
-          continue;
-        }
-
-        if (isSubsequenceMatch(token, normalizedQuery)) {
-          score = Math.min(score, 20 + token.length);
-        }
-      }
-
-      return { target, score };
-    })
-    .filter((item) => item.score < Number.MAX_SAFE_INTEGER)
-    .sort((a, b) => a.score - b.score)
-    .slice(0, 8)
-    .map((item) => item.target);
-};
-
-const SEARCH_HISTORY_KEY = 'oa-global-search-history';
-
-const getSearchGroup = (id: Page): SearchGroup => {
-  if (id.startsWith('apps') || id.startsWith('workflow')) return '流程申请';
-  if (id.startsWith('reports')) return '报表分析';
-  if (id.startsWith('sys')) return '系统设置';
-  if (id === 'chat' || id === 'contacts' || id === 'approvals') return '协作沟通';
-  return '其他';
-};
-
-const SEARCH_GROUP_ORDER: SearchGroup[] = ['流程申请', '报表分析', '系统设置', '协作沟通', '其他'];
-
-const renderHighlightedText = (text: string, query: string) => {
-  const trimmed = query.trim();
-  if (!trimmed) return text;
-
-  const lowerText = text.toLowerCase();
-  const lowerQuery = trimmed.toLowerCase();
-  const start = lowerText.indexOf(lowerQuery);
-  if (start === -1) return text;
-
-  const end = start + trimmed.length;
-  return (
-    <>
-      {text.slice(0, start)}
-      <span className="text-blue-600 font-semibold">{text.slice(start, end)}</span>
-      {text.slice(end)}
-    </>
-  );
-};
-
 // --- Components ---
 
 const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePage: (p: Page) => void }) => {
-  const { t, locale, setLocale } = useI18n();
   const [isAppsExpanded, setIsAppsExpanded] = useState(true);
   const [isReportsExpanded, setIsReportsExpanded] = useState(false);
   const [isSysExpanded, setIsSysExpanded] = useState(false);
@@ -439,7 +454,7 @@ const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePag
   };
 
   const menuItems = [
-    { id: 'workbench', icon: LayoutDashboard, label: t('workbench') },
+    { id: 'workbench', icon: LayoutDashboard, label: '门户首页' },
     { id: 'approvals', icon: ShieldCheck, label: '流程待办' },
     { 
       id: 'apps', 
@@ -514,15 +529,15 @@ const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePag
     { 
       id: 'sys', 
       icon: Settings2, 
-      label: t('sysMgmt'),
+      label: '系统管理',
       subItems: [
-        { id: 'sys-user', label: 'User Management' },
-          { id: 'sys-role', label: 'Role Management', icon: ShieldCheck },
-          { id: 'sys-menu', label: 'Menu Management', icon: Grid },
-          { id: 'sys-dept', label: 'Department Management', icon: Building2 },
-          { id: 'sys-post', label: 'Post Management', icon: Briefcase },
-          { id: 'sys-dict', label: 'Dictionary Management', icon: Library },
-          { id: 'sys-notice', label: 'Notice Management', icon: Bell },
+        { id: 'sys-user', label: '用户管理' },
+        { id: 'sys-role', label: '角色管理', icon: ShieldCheck },
+        { id: 'sys-menu', label: '菜单管理', icon: Grid },
+        { id: 'sys-dept', label: '部门管理', icon: Building2 },
+        { id: 'sys-post', label: '岗位管理', icon: Briefcase },
+        { id: 'sys-dict', label: '字典管理', icon: Library },
+        { id: 'sys-notice', label: '通知公告管理', icon: Bell },
       ]
     },
     { 
@@ -645,172 +660,133 @@ const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePag
       <div className="p-4 border-t border-gray-50 space-y-1">
         <button className="w-full flex items-center gap-3 px-4 py-2 text-gray-400 hover:bg-gray-50 rounded-lg text-sm">
           <Library className="w-4 h-4" />
-          {t('helpCenter')}
+          帮助中心
         </button>
       </div>
     </aside>
   );
 };
 
-const Header = ({
-  user,
-  onLogout,
-  searchQuery,
-  onSearchChange,
-  onNavigate,
-  onOpenNoticeCenter,
-  onRefresh,
-  onGoHome,
-  unreadNoticeCount,
-  isRefreshing,
-}: {
-  user: any;
-  onLogout: () => void;
-  searchQuery: string;
-  onSearchChange: (value: string) => void;
-  onNavigate: (p: Page) => void;
-  onOpenNoticeCenter: () => void;
-  onRefresh: () => void;
-  onGoHome: () => void;
-  unreadNoticeCount: number;
-  isRefreshing: boolean;
-}) => {
-  const { t, locale, setLocale } = useI18n();
-  const results = fuzzySearchTargets(SEARCH_TARGETS, searchQuery);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isFocused, setIsFocused] = useState(false);
-  const [history, setHistory] = useState<SearchTarget[]>([]);
+const Header = ({ user, onLogout, onGoHome, onUpdateAvatar, onUpdateStatus, onBellClick, onError, chats }: { user: any; onLogout: () => void; onGoHome: () => void; onUpdateAvatar: (avatarDataUrl: string) => void; onUpdateStatus: (statusText: string) => void; onBellClick?: () => void; onError: (err: { title: string; message: string } | null) => void; chats: ChatItem[] }) => {
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+  const statusButtonRef = useRef<HTMLButtonElement>(null);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [customStatus, setCustomStatus] = useState('');
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    try {
-      const raw = window.localStorage.getItem(SEARCH_HISTORY_KEY);
-      if (!raw) return;
-
-      const ids = JSON.parse(raw) as Page[];
-      const resolved = ids
-        .map((id) => SEARCH_TARGETS.find((item) => item.id === id))
-        .filter((item): item is SearchTarget => Boolean(item));
-
-      setHistory(resolved);
-    } catch {
-      setHistory([]);
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      onError({ title: '格式错误', message: '请选择图片文件' });
+      e.target.value = '';
+      return;
     }
-  }, []);
+    if (file.size > 2 * 1024 * 1024) {
+      onError({ title: '文件过大', message: '头像图片不能超过 2MB' });
+      e.target.value = '';
+      return;
+    }
+    // 先用 createObjectURL 验证图片在浏览器中是否能被正确解码
+    const objectUrl = URL.createObjectURL(file);
+    const imgTest = new Image();
+    let validated = false;
+    const clean = () => {
+      try { URL.revokeObjectURL(objectUrl); } catch {}
+    };
+    imgTest.onload = () => {
+      validated = true;
+      clean();
+      // 验证通过，再把文件读取为 data URL 存储
+        const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || '');
+        if (!result) {
+          onError({ title: '读取失败', message: '图片读取失败，请重试' });
+          return;
+        }
+        try {
+          onUpdateAvatar(result);
+        } catch (err) {
+          onError({ title: '保存失败', message: '头像保存失败，请重试或更换图片' });
+        }
+      };
+      reader.onerror = (ev) => {
+        console.error('FileReader.onerror', { file, ev });
+        onError({ title: '读取失败', message: `图片读取失败（文件：${file.name}），请重试` });
+      };
+      reader.readAsDataURL(file);
+    };
+    imgTest.onerror = () => {
+      clean();
+      console.error('头像验证失败，img.onerror', { file });
+      // 如果是 BMP，尝试用内置解析器解析为 PNG（回退方案）
+      const isBmp = file.type === 'image/bmp' || /\.bmp$/i.test(file.name);
+      if (isBmp) {
+        const abReader = new FileReader();
+        abReader.onload = () => {
+          try {
+            const arrayBuffer = abReader.result as ArrayBuffer;
+            const dataUrl = parseBmpArrayBufferToDataUrl(arrayBuffer);
+            try { onUpdateAvatar(dataUrl); } catch (e) { onError({ title: '解析失败', message: 'BMP 解析失败，请转换为 PNG/JPEG' }); }
+            return;
+          } catch (err) {
+            console.error('BMP 解析失败', err);
+            onError({ title: 'BMP 解析失败', message: '图片无法加载或 BMP 格式不支持，请转换为 PNG/JPEG' });
+            return;
+          }
+        };
+        abReader.onerror = (ev) => {
+          console.error('ArrayBuffer 读取失败', { ev, file });
+          onError({ title: '读取失败', message: `图片读取失败（文件：${file.name}），请重试或转换为 PNG/JPEG` });
+        };
+        abReader.readAsArrayBuffer(file);
+        return;
+      }
+
+      onError({ title: '加载失败', message: `图片内容无法加载（文件：${file.name}，类型：${file.type}，大小：${file.size} 字节）` });
+    };
+    imgTest.src = objectUrl;
+    e.target.value = '';
+  };
+
+  const avatarFallbackText = (user?.username || 'U').slice(0, 1).toUpperCase();
+  const statusText = (user?.statusSignature || '状态未设置').trim() || '状态未设置';
 
   useEffect(() => {
-    setActiveIndex(0);
-  }, [searchQuery]);
+    if (!showStatusMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        statusMenuRef.current?.contains(e.target as Node) ||
+        statusButtonRef.current?.contains(e.target as Node)
+      ) return;
+      setShowStatusMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showStatusMenu]);
 
-  const persistHistory = (items: SearchTarget[]) => {
-    if (typeof window === 'undefined') return;
-
-    window.localStorage.setItem(
-      SEARCH_HISTORY_KEY,
-      JSON.stringify(items.map((item) => item.id))
-    );
+  const applyStatus = (value: string) => {
+    const normalized = value.trim() || '状态未设置';
+    onUpdateStatus(normalized);
+    setShowStatusMenu(false);
+    setCustomStatus('');
   };
 
-  const rememberTarget = (target: SearchTarget) => {
-    setHistory((prev) => {
-      const next = [target, ...prev.filter((item) => item.id !== target.id)].slice(0, 6);
-      persistHistory(next);
-      return next;
-    });
-  };
-
-  const selectTarget = (target: SearchTarget) => {
-    onNavigate(target.id);
-    onSearchChange('');
-    setActiveIndex(0);
-    setIsFocused(false);
-    rememberTarget(target);
-  };
-
-  const panelItems = searchQuery.trim() ? results : history;
-  const showPanel = isFocused && panelItems.length > 0;
-  const activeItem = panelItems[activeIndex];
-  const groupedPanelItems = SEARCH_GROUP_ORDER
-    .map((group) => ({
-      group,
-      items: panelItems
-        .map((item, index) => ({ item, index }))
-        .filter((entry) => getSearchGroup(entry.item.id) === group),
-    }))
-    .filter((entry) => entry.items.length > 0);
+  // 基于传入的 `chats` 计算未读总数（保证实时与 App 状态一致）
+  const totalOnlineUnread = Array.isArray(chats) ? chats.reduce((sum, chat) => sum + (chat.unread || 0), 0) : 0;
+  const onlineUnreadBadge = totalOnlineUnread > 99 ? '99+' : (totalOnlineUnread > 0 ? String(totalOnlineUnread) : '');
 
   return (
     <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-10">
-          <div className="flex items-center gap-4 flex-1 max-w-xl">
+      <div className="flex items-center gap-4 flex-1 max-w-xl">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             placeholder="搜索流程、公告、同事..."
-            value={searchQuery}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => {
-              setTimeout(() => setIsFocused(false), 120);
-            }}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowDown' && panelItems.length > 0) {
-                e.preventDefault();
-                setActiveIndex((prev) => (prev + 1) % panelItems.length);
-                return;
-              }
-
-              if (e.key === 'ArrowUp' && panelItems.length > 0) {
-                e.preventDefault();
-                setActiveIndex((prev) => (prev - 1 + panelItems.length) % panelItems.length);
-                return;
-              }
-
-              if (e.key === 'Enter' && activeItem) {
-                e.preventDefault();
-                selectTarget(activeItem);
-                return;
-              }
-
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                setIsFocused(false);
-              }
-            }}
             className="w-full bg-gray-50 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-100 transition-all"
           />
-          {showPanel && (
-            <div className="absolute top-12 left-0 right-0 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 max-h-80 overflow-auto z-20">
-              {!searchQuery.trim() && (
-                <div className="px-3 py-1 text-xs text-gray-400">最近搜索</div>
-              )}
-              {groupedPanelItems.map(({ group, items }) => (
-                <div key={group} className="mb-1 last:mb-0">
-                  <div className="px-3 py-1 text-[11px] font-medium text-gray-400">{group}</div>
-                  {items.map(({ item, index }) => (
-                    <button
-                      key={item.id}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        selectTarget(item);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg ${
-                        index === activeIndex ? 'bg-blue-50' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="text-sm text-gray-700">
-                        {renderHighlightedText(item.label, searchQuery)}
-                      </div>
-                      {item.keywords?.[0] && (
-                        <div className="text-xs text-gray-400 mt-0.5">{item.keywords[0]}</div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
       <div className="flex items-center gap-6">
@@ -818,58 +794,111 @@ const Header = ({
           <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border border-gray-100 mr-2">
             <Languages className="w-3.5 h-3.5 text-gray-400" />
             <div className="flex items-center gap-1.5 text-[10px] font-bold">
-              <button onClick={() => setLocale && setLocale('zh')} aria-label="选择中文" className={`px-1 ${locale === 'zh' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>中</button>
+              <span className="text-blue-600 cursor-pointer">中</span>
               <span className="text-gray-300">|</span>
-              <button onClick={() => setLocale && setLocale('en')} aria-label="选择英文" className={`px-1 ${locale === 'en' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>EN</button>
+              <span className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">EN</span>
               <span className="text-gray-300">|</span>
-              <button onClick={() => setLocale && setLocale('pt')} aria-label="选择葡萄牙语" className={`px-1 ${locale === 'pt' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>PT</button>
+              <span className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">PT</span>
             </div>
           </div>
-          <button
-            type="button"
-            title="通知公告"
-            aria-label="通知公告"
-            onClick={onOpenNoticeCenter}
-            className="relative"
-          >
-            <Bell className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
-            {unreadNoticeCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
-                {unreadNoticeCount > 99 ? '99+' : unreadNoticeCount}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            title={t('refresh')}
-            aria-label={t('refresh')}
-            onClick={onRefresh}
-            disabled={isRefreshing}
-          >
-            <RotateCcw className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-blue-600' : 'cursor-pointer hover:text-gray-600'}`} />
-          </button>
-          <button
-            type="button"
-            title="返回首页"
-            aria-label="返回首页"
-            onClick={onGoHome}
-          >
-            <Home className="w-5 h-5 cursor-pointer hover:text-gray-600" />
+          <div className="relative">
+            <button
+              className="relative focus:outline-none"
+              title="在线沟通未读"
+              onClick={onBellClick}
+            >
+              <Bell className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
+              {onlineUnreadBadge && (
+                <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-xs rounded-full flex items-center justify-center border-2 border-white shadow">
+                  {onlineUnreadBadge}
+                </span>
+              )}
+            </button>
+          </div>
+          <button onClick={onGoHome} title="返回门户首页" className="p-0.5 rounded hover:bg-gray-50 hover:text-blue-600 transition-colors">
+            <Home className="w-5 h-5" />
           </button>
         </div>
-          <div className="flex items-center gap-2 pl-4 border-l border-gray-100">
-          <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-medium text-sm">
-            {user?.nickname?.[0] || '王'}
+      <div className="flex items-center gap-2 pl-4 border-l border-gray-100">
+        <button
+          onClick={() => avatarInputRef.current?.click()}
+          title="点击更换头像"
+          className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-medium text-sm overflow-hidden border border-orange-200 hover:opacity-90 transition-opacity"
+        >
+          {user?.avatar ? (
+              <img
+              src={user.avatar}
+              alt="用户头像"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.onerror = null;
+                try { img.removeAttribute('src'); } catch {}
+                try {
+                  onUpdateAvatar('');
+                } catch {}
+                onError({ title: '头像加载失败', message: '头像加载失败，已恢复为默认头像' });
+              }}
+            />
+          ) : (
+            avatarFallbackText
+          )}
+        </button>
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleAvatarChange}
+        />
+        <div className="flex flex-col relative">
+          <span className="text-sm font-medium text-gray-700">{user?.nickname || '王严严'}</span>
+          <div className="flex items-center gap-2">
+            <button
+              ref={statusButtonRef}
+              onClick={() => setShowStatusMenu((prev) => !prev)}
+              className="max-w-[120px] text-[10px] text-gray-500 bg-gray-100 rounded-full px-2 py-0.5 truncate hover:bg-blue-50 hover:text-blue-600 transition-colors text-left"
+              title="设置个性化签名状态"
+            >
+              {statusText}
+            </button>
+            <button onClick={onLogout} className="text-[10px] text-gray-400 hover:text-red-500 text-left transition-colors">退出登录</button>
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-700">{user?.nickname || '王严严'}</span>
-            <div className="flex items-center gap-2">
-              <button onClick={onLogout} className="text-[10px] text-gray-400 hover:text-red-500 text-left transition-colors">{t('logout')}</button>
+          {showStatusMenu && (
+            <div ref={statusMenuRef} className="absolute top-11 right-0 z-30 w-64 bg-white border border-gray-100 rounded-xl shadow-lg p-3">
+              <div className="text-[11px] text-gray-500 mb-2">个性化签名状态</div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {CHAT_SIGNATURE_PRESETS.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => applyStatus(item)}
+                    className="px-2 py-1 text-[11px] rounded-full bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+              <div className="text-[11px] text-gray-500 mb-1">自定义状态</div>
+              <div className="flex items-center gap-2">
+                <input
+                  value={customStatus}
+                  onChange={(e) => setCustomStatus(e.target.value)}
+                  placeholder="例如：外出客户拜访"
+                  className="flex-1 h-8 px-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  onClick={() => applyStatus(customStatus)}
+                  className="h-8 px-2 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                >
+                  保存
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
-    </header>
+    </div>
+  </header>
   );
 };
 
@@ -898,7 +927,6 @@ const Workbench = ({
   chats: ChatItem[];
   onOpenChat: (chatId: number) => void;
 }) => {
-  const { t } = useI18n();
   const currentDisplayName = currentUser?.nickname || currentUser?.username || '管理员';
   const pendingCount = workflowRequests.filter(item => item.status === '待审批').length;
   const draftCount = workflowRequests.filter(item => item.status === '草稿').length;
@@ -938,7 +966,7 @@ const Workbench = ({
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">{t('welcome')}，<span className="text-blue-600">{currentUser?.nickname || t('admin')}</span></h1>
+        <h1 className="text-2xl font-bold text-gray-800">下午好，<span className="text-blue-600">{currentUser?.nickname || '王严严'}</span></h1>
         <div className="text-sm text-gray-400">2026年3月26日 星期四</div>
       </div>
 
@@ -950,7 +978,7 @@ const Workbench = ({
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
                 <Bell className="w-5 h-5 text-orange-500" />
-                <h3 className="font-bold text-gray-800">{t('notices')}</h3>
+                <h3 className="font-bold text-gray-800">新闻公告</h3>
               </div>
               <button 
                 onClick={() => setActivePage('sys-notice')}
@@ -1258,12 +1286,14 @@ const Chat = ({
   setChats,
   activeChatId,
   setActiveChatId,
+  currentUser,
   onClose,
 }: {
   chats: ChatItem[];
   setChats: React.Dispatch<React.SetStateAction<ChatItem[]>>;
   activeChatId: number;
   setActiveChatId: React.Dispatch<React.SetStateAction<number>>;
+  currentUser: any;
   onClose: () => void;
 }) => {
 
@@ -1294,6 +1324,41 @@ const Chat = ({
   const docInputRef = useRef<HTMLInputElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  const signatureMenuRef = useRef<HTMLDivElement>(null);
+  const signatureButtonRef = useRef<HTMLButtonElement>(null);
+  const [showSignatureMenu, setShowSignatureMenu] = useState(false);
+  const [customSignature, setCustomSignature] = useState('');
+  const [onlineAccounts, setOnlineAccounts] = useState<string[]>(() => getOnlineUsersFromStorage());
+  const [chatSignatures, setChatSignatures] = useState<Record<number, string>>(() => {
+    const stored = getSignaturesFromStorage();
+    const defaults = Object.fromEntries(chats.map((chat) => [chat.id, chat.signature || '状态未设置']));
+    return { ...defaults, ...stored };
+  });
+
+  const isChatOnline = (chat: ChatItem) => {
+    if (chat.type === 'group') return true;
+    if (!chat.userAccount) return false;
+    return onlineAccounts.includes(normalizeAccount(chat.userAccount));
+  };
+
+  const getChatStatusMeta = (chat: ChatItem) => {
+    if (chat.type === 'group') {
+      return {
+        label: '群聊',
+        dotClass: 'bg-blue-500',
+        textClass: 'text-blue-500',
+        pulse: false,
+      };
+    }
+
+    const online = isChatOnline(chat);
+    return {
+      label: online ? '在线' : '离线',
+      dotClass: online ? 'bg-green-500' : 'bg-gray-400',
+      textClass: online ? 'text-green-500' : 'text-gray-400',
+      pulse: online,
+    };
+  };
 
   useEffect(() => {
     if (activeChatId) {
@@ -1302,14 +1367,103 @@ const Chat = ({
   }, [activeChatId]);
 
   useEffect(() => {
+    setOnlineAccounts(getOnlineUsersFromStorage());
+  }, [currentUser?.username]);
+
+  useEffect(() => {
     if (chats.length === 0) return;
+    if (selectedChatId === 0) return;
     const exists = chats.some(c => c.id === selectedChatId);
     if (!exists) {
       setSelectedChatId(chats[0].id);
     }
   }, [chats, selectedChatId]);
 
-  const selectedChat = chats.find(c => c.id === selectedChatId) || chats[0];
+  useEffect(() => {
+    setChatSignatures((prev) => {
+      const next: Record<number, string> = {};
+      let changed = false;
+
+      chats.forEach((chat) => {
+        const signatureFromChat = chat.signature || '状态未设置';
+        next[chat.id] = signatureFromChat;
+        if (prev[chat.id] !== signatureFromChat) {
+          changed = true;
+        }
+      });
+
+      const prevIds = Object.keys(prev).length;
+      if (!changed && prevIds === chats.length) {
+        return prev;
+      }
+      return next;
+    });
+  }, [chats]);
+
+  useEffect(() => {
+    saveSignaturesToStorage(chatSignatures);
+  }, [chatSignatures]);
+
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (!event.key || event.key === ONLINE_USERS_STORAGE_KEY) {
+        setOnlineAccounts(getOnlineUsersFromStorage());
+      }
+      if (!event.key || event.key === CHAT_SIGNATURES_STORAGE_KEY) {
+        const latest = getSignaturesFromStorage();
+        setChatSignatures((prev) => ({ ...prev, ...latest }));
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const selectedChat = chats.find(c => c.id === selectedChatId);
+  const selectedStatus = selectedChat ? getChatStatusMeta(selectedChat) : null;
+  const selectedSignature = selectedChat ? (chatSignatures[selectedChat.id] || '状态未设置') : '状态未设置';
+  const canEditSelectedSignature = !!selectedChat && selectedChat.type === 'direct' && normalizeAccount(selectedChat.userAccount) === normalizeAccount(currentUser?.username);
+
+  useEffect(() => {
+    if (!canEditSelectedSignature) {
+      setShowSignatureMenu(false);
+    }
+  }, [canEditSelectedSignature]);
+
+  const handleSetSignature = (nextValue: string) => {
+    if (!selectedChat) return;
+    const normalized = nextValue.trim() || '状态未设置';
+
+    setChatSignatures((prev) => ({ ...prev, [selectedChat.id]: normalized }));
+    setChats((prev) => prev.map((chat) => (
+      chat.id === selectedChat.id ? { ...chat, signature: normalized } : chat
+    )));
+    setShowSignatureMenu(false);
+    setCustomSignature('');
+  };
+
+  const handleSaveCustomSignature = () => {
+    if (!canEditSelectedSignature) return;
+    handleSetSignature(customSignature);
+  };
+
+  const handleEditGroupName = () => {
+    if (!selectedChat || selectedChat.type !== 'group') return;
+    const nextName = window.prompt('请输入新的群聊名称', selectedChat.name);
+    if (nextName === null) return;
+    const normalized = nextName.trim();
+    if (!normalized) {
+      setAppError({ title: '输入错误', message: '群聊名称不能为空' });
+      return;
+    }
+    setChats((prev) => prev.map((chat) => (
+      chat.id === selectedChat.id ? { ...chat, name: normalized } : chat
+    )));
+  };
+
+  const handleCloseCurrentConversation = () => {
+    setSelectedChatId(0);
+    setActiveChatId(0);
+  };
 
   useEffect(() => {
     if (!selectedChat) return;
@@ -1339,6 +1493,19 @@ const Chat = ({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [showEmojiPicker]);
+
+  useEffect(() => {
+    if (!showSignatureMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        signatureMenuRef.current?.contains(e.target as Node) ||
+        signatureButtonRef.current?.contains(e.target as Node)
+      ) return;
+      setShowSignatureMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showSignatureMenu]);
 
   const EMOJIS = ['😀','😂','🥰','😎','🤔','😅','👍','🙏','🎉','❤️','🔥','✅','💪','🤝','😊','🥳','😢','😡','🤣','💯','👀','⭐','🚀','📌','📎','🗂️','📝','💬','📢','🔔'];
 
@@ -1428,6 +1595,9 @@ const Chat = ({
           {sortChatsByUnreadAndTime(chats)
             .filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.lastMsg.toLowerCase().includes(searchQuery.toLowerCase()))
             .map((chat) => (
+            (() => {
+              const status = getChatStatusMeta(chat);
+              return (
             <div
               key={chat.id}
               onClick={() => {
@@ -1457,8 +1627,17 @@ const Chat = ({
                     </span>
                   )}
                 </div>
+                <div className="mt-1 flex items-center gap-1.5 min-w-0">
+                  <span className={`w-1.5 h-1.5 rounded-full ${status.dotClass} ${status.pulse ? 'animate-pulse' : ''}`}></span>
+                  <span className={`text-[10px] ${status.textClass}`}>{status.label}</span>
+                  <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full truncate max-w-[140px]">
+                    {chatSignatures[chat.id] || '状态未设置'}
+                  </span>
+                </div>
               </div>
             </div>
+              );
+            })()
           ))}
         </div>
       </div>
@@ -1478,10 +1657,68 @@ const Chat = ({
               {selectedChat.avatar}
             </div>
             <div>
-              <div className="font-bold text-gray-800">{selectedChat.name}</div>
-              <div className="text-[10px] text-green-500 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                在线
+              <div className="flex items-center gap-2">
+                <div className="font-bold text-gray-800">{selectedChat.name}</div>
+                {selectedChat.type === 'group' && (
+                  <button
+                    onClick={handleEditGroupName}
+                    title="编辑群聊名称"
+                    className="p-1 rounded-md text-gray-400 hover:text-blue-600 hover:bg-gray-50 transition-colors"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className={`text-[10px] ${selectedStatus?.textClass || 'text-gray-400'} flex items-center gap-1`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${selectedStatus?.dotClass || 'bg-gray-400'} ${selectedStatus?.pulse ? 'animate-pulse' : ''}`}></span>
+                {selectedStatus?.label || '离线'}
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full max-w-[220px] truncate">
+                  {selectedSignature}
+                </span>
+                <div className="relative">
+                  <button
+                    ref={signatureButtonRef}
+                    disabled={!canEditSelectedSignature}
+                    onClick={() => setShowSignatureMenu((prev) => !prev)}
+                    title={canEditSelectedSignature ? '设置签名' : '仅可修改自己的签名'}
+                    className={`p-1 rounded-md transition-colors ${canEditSelectedSignature ? 'text-gray-400 hover:text-blue-600 hover:bg-gray-50' : 'text-gray-300 cursor-not-allowed'}`}
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  {showSignatureMenu && (
+                    <div ref={signatureMenuRef} className="absolute top-7 left-0 z-20 w-64 bg-white border border-gray-100 rounded-xl shadow-lg p-3">
+                      <div className="text-[11px] text-gray-500 mb-2">快捷签名</div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {CHAT_SIGNATURE_PRESETS.map((item) => (
+                          <button
+                            key={item}
+                            onClick={() => handleSetSignature(item)}
+                            className="px-2 py-1 text-[11px] rounded-full bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="text-[11px] text-gray-500 mb-1">自定义签名</div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={customSignature}
+                          onChange={(e) => setCustomSignature(e.target.value)}
+                          placeholder="例如：外出客户拜访"
+                          className="flex-1 h-8 px-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        />
+                        <button
+                          onClick={handleSaveCustomSignature}
+                          className="h-8 px-2 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                        >
+                          保存
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1490,8 +1727,8 @@ const Chat = ({
             <Video className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
             <MoreHorizontal className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
             <button
-              onClick={onClose}
-              title="关闭并返回首页"
+              onClick={handleCloseCurrentConversation}
+              title="关闭当前会话并返回聊天列表"
               className="p-1.5 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -1916,7 +2153,6 @@ const ApprovalGroups = ({
 };
 
 const LeaveRequestForm = ({ onBack, title = '请假申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
-  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -1930,26 +2166,26 @@ const LeaveRequestForm = ({ onBack, title = '请假申请', onSubmitRequest }: {
               <Calendar className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
+              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
+            <Sparkles className="w-3.5 h-3.5" /> AI 助手
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> {t('draftBox')} (1)
+            <History className="w-3.5 h-3.5" /> 草稿箱 (1)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
-          <button type="button" onClick={() => { alert(t('draftSaved')); onBack(); }} className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+          <button type="button" onClick={() => { setAppNotice({ type: 'success', message: '草稿已保存' }); onBack(); }} className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
+            存草稿
           </button>
-          <button type="button" onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+          <button type="button" onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }} className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
+            提交并继续创建
           </button>
-          <button type="button" onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
+          <button type="button" onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功' }); onBack(); }} className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             提交
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
@@ -2025,14 +2261,14 @@ const LeaveRequestForm = ({ onBack, title = '请假申请', onSubmitRequest }: {
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          {t('autoSavedDraft')} 12:49:59
+          系统已自动保存草稿 12:49:59
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
           <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
@@ -2044,7 +2280,6 @@ const LeaveRequestForm = ({ onBack, title = '请假申请', onSubmitRequest }: {
 };
 
 const TrainingRequestForm = ({ onBack, title = '培训申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
-  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2058,27 +2293,27 @@ const TrainingRequestForm = ({ onBack, title = '培训申请', onSubmitRequest }
               <GraduationCap className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
+              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
+            <Sparkles className="w-3.5 h-3.5" /> AI 助手
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
+            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
-            {t('submit')}
+            提交
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
@@ -2139,16 +2374,16 @@ const TrainingRequestForm = ({ onBack, title = '培训申请', onSubmitRequest }
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          {t('autoSavedDraft')} 12:50:15
+          系统已自动保存草稿 12:50:15
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            提交并继续创建
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功' }); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -2158,7 +2393,6 @@ const TrainingRequestForm = ({ onBack, title = '培训申请', onSubmitRequest }
 };
 
 const StampRequestForm = ({ onBack, title = '用印申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
-  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2172,27 +2406,27 @@ const StampRequestForm = ({ onBack, title = '用印申请', onSubmitRequest }: {
               <Stamp className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
+              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
+            <Sparkles className="w-3.5 h-3.5" /> AI 助手
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
+            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
-            {t('submit')}
+            提交
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
@@ -2272,16 +2506,16 @@ const StampRequestForm = ({ onBack, title = '用印申请', onSubmitRequest }: {
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          {t('autoSavedDraft')} 12:50:30
+          系统已自动保存草稿 12:50:30
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            提交并继续创建
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功' }); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -2290,20 +2524,7 @@ const StampRequestForm = ({ onBack, title = '用印申请', onSubmitRequest }: {
   );
 };
 
-const ReimbursementRequestForm = ({
-  onBack,
-  title = '报销申请',
-  onSubmitRequest,
-  expenseCategoryOptions,
-  bankOptions,
-}: {
-  onBack: () => void;
-  title?: string;
-  onSubmitRequest?: (title: string) => void;
-  expenseCategoryOptions: string[];
-  bankOptions: string[];
-}) => {
-  const { t } = useI18n();
+const ReimbursementRequestForm = ({ onBack, title = '报销申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2317,27 +2538,27 @@ const ReimbursementRequestForm = ({
               <FileText className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
+              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
+            <Sparkles className="w-3.5 h-3.5" /> AI 助手
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> {t('draftBox')} (3)
+            <History className="w-3.5 h-3.5" /> 草稿箱 (3)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
-            {t('submit')}
+            提交
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
@@ -2355,37 +2576,39 @@ const ReimbursementRequestForm = ({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-indigo-600">
               <Wallet className="w-4 h-4" />
-              <h3 className="text-sm font-bold">{t('reimburseDetails')}</h3>
+              <h3 className="text-sm font-bold">报销详情 (DETALHES DO REEMBOLSO)</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('expenseCategoryLabel')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">报销类别 (Tipo de Despesa)</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
-                  {expenseCategoryOptions.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
+                  <option>差旅费 (Viagens)</option>
+                  <option>招待费 (Entretenimento)</option>
+                  <option>办公费 (Escritório)</option>
+                  <option>通讯费 (Comunicação)</option>
+                  <option>其他 (Outros)</option>
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('reimburseAmountLabel')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">报销金额 (Valor)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">R$</span>
                   <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none" placeholder="0.00" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('occurrenceDate')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">发生日期 (Data)</label>
                 <input type="date" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" />
               </div>
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('expenseDescriptionLabel')}</label>
-                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder={t('expenseDescriptionPlaceholderLong')} />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">费用说明 (Descrição)</label>
+                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder="请详细说明费用产生的原因和用途..." />
               </div>
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceAttachmentLabel')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">发票附件 (Anexos de Fatura)</label>
                 <div className="border-2 border-dashed border-gray-100 rounded-2xl p-8 flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-blue-200 hover:text-blue-500 transition-all cursor-pointer">
                   <PlusCircle className="w-6 h-6" />
-                  <span className="text-xs font-bold">{t('uploadInvoiceHint')}</span>
+                  <span className="text-xs font-bold">点击或拖拽上传发票照片或PDF</span>
                 </div>
               </div>
             </div>
@@ -2394,19 +2617,15 @@ const ReimbursementRequestForm = ({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-indigo-600">
               <CreditCard className="w-4 h-4" />
-              <h3 className="text-sm font-bold">{t('payeeAccount')}</h3>
+              <h3 className="text-sm font-bold">收款账户 (CONTA BANCÁRIA)</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('bankName')}</label>
-                <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
-                  {bankOptions.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">银行名称 (Banco)</label>
+                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="例如: Banco do Brasil" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('accountNumber')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">账号 (Número da Conta)</label>
                 <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="00000-0" />
               </div>
             </div>
@@ -2418,17 +2637,17 @@ const ReimbursementRequestForm = ({
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          {t('autoSavedDraft')} 12:51:00
+          系统已自动保存草稿 12:51:00
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            提交并继续创建
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
-            {t('submit')}
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功' }); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+            提交
           </button>
         </div>
       </div>
@@ -2436,18 +2655,7 @@ const ReimbursementRequestForm = ({
   );
 };
 
-const PaymentRequestForm = ({
-  onBack,
-  title = '付款申请',
-  onSubmitRequest,
-  paymentMethodOptions,
-}: {
-  onBack: () => void;
-  title?: string;
-  onSubmitRequest?: (title: string) => void;
-  paymentMethodOptions: string[];
-}) => {
-  const { t } = useI18n();
+const PaymentRequestForm = ({ onBack, title = '付款申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2461,24 +2669,24 @@ const PaymentRequestForm = ({
               <CreditCard className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
+              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
+            <Sparkles className="w-3.5 h-3.5" /> AI 助手
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
+            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             {t('submit')}
@@ -2499,35 +2707,36 @@ const PaymentRequestForm = ({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-blue-600">
               <Workflow className="w-4 h-4" />
-              <h3 className="text-sm font-bold">{t('paymentDetails')}</h3>
+              <h3 className="text-sm font-bold">付款详情 (DETALHES DO PAGAMENTO)</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('payeeNameLabel')}</label>
-                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder={t('payeeNamePlaceholder')} />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">收款单位/个人 (Beneficiário)</label>
+                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="请输入收款方全称" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('paymentAmountLabel')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">付款金额 (Valor do Pagamento)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">R$</span>
                   <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none" placeholder="0.00" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('paymentTimeLabel')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">付款时间 (Data e Hora de Pagamento)</label>
                 <input type="datetime-local" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('paymentMethodLabel')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">付款方式 (Método)</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
-                  {paymentMethodOptions.map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
+                  <option>银行转账 (Transferência)</option>
+                  <option>支票 (Cheque)</option>
+                  <option>现金 (Dinheiro)</option>
+                  <option>PIX</option>
                 </select>
               </div>
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('paymentPurposeLabel')}</label>
-                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder={t('paymentPurposePlaceholder')} />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">付款用途 (Finalidade)</label>
+                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder="请详细说明付款原因..." />
               </div>
             </div>
           </div>
@@ -2538,17 +2747,17 @@ const PaymentRequestForm = ({
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          {t('autoSavedDraft')} 12:51:15
+          系统已自动保存草稿 12:51:15
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            提交并继续创建
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
-            {t('submit')}
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功' }); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+            提交
           </button>
         </div>
       </div>
@@ -2557,7 +2766,6 @@ const PaymentRequestForm = ({
 };
 
 const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
-  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2571,24 +2779,24 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }:
               <FileText className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
+              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
+            <Sparkles className="w-3.5 h-3.5" /> AI 助手
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
+            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             {t('submit')}
@@ -2609,34 +2817,34 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }:
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-orange-600">
               <FileText className="w-4 h-4" />
-              <h3 className="text-sm font-bold">{t('invoiceDetails')}</h3>
+              <h3 className="text-sm font-bold">开票详情 (DETALHES DA FATURA)</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceTitleLabel')}</label>
-                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder={t('invoiceTitlePlaceholder')} />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">发票抬头 (Razão Social)</label>
+                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="请输入发票抬头" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('taxIdLabel')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">纳税人识别号 (CNPJ/CPF)</label>
                 <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="00.000.000/0000-00" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceTypeLabel')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">发票类型 (Tipo de Fatura)</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
-                  <option>{t('invoiceTypeVatSpecial')}</option>
-                  <option>{t('invoiceTypeVatNormal')}</option>
+                  <option>增值税专用发票 (NF-e)</option>
+                  <option>增值税普通发票 (NFS-e)</option>
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceAmountLabel')}</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">开票金额 (Valor Total)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">R$</span>
                   <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none" placeholder="0.00" />
                 </div>
               </div>
               <div className="md:col-span-2 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceItemsLabel')}</label>
-                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder={t('invoiceItemsPlaceholder')} />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">开票项目 (Itens da Fatura)</label>
+                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder="请列出开票的具体项目和明细..." />
               </div>
             </div>
           </div>
@@ -2647,17 +2855,17 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }:
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          {t('autoSavedDraft')} 12:51:30
+          系统已自动保存草稿 12:51:30
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            提交并继续创建
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
-            {t('submit')}
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功' }); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+            提交
           </button>
         </div>
       </div>
@@ -2666,7 +2874,6 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }:
 };
 
 const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
-  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2680,24 +2887,24 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitReques
               <ShoppingCart className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
+              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
+            <Sparkles className="w-3.5 h-3.5" /> AI 助手
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> {t('draftBox')} (1)
+            <History className="w-3.5 h-3.5" /> 草稿箱 (1)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             提交
@@ -2757,16 +2964,16 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitReques
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          {t('autoSavedDraft')} 12:51:45
+          系统已自动保存草稿 12:51:45
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            提交并继续创建
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: t('submitSuccess') }); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             {t('submit')}
           </button>
         </div>
@@ -2776,7 +2983,6 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitReques
 };
 
 const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
-  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2790,24 +2996,24 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitReques
               <Briefcase className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
+              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
+            <Sparkles className="w-3.5 h-3.5" /> AI 助手
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
+            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             提交
@@ -2852,26 +3058,26 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitReques
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          {t('autoSavedDraft')} 12:52:00
+          系统已自动保存草稿 12:52:00
         </div>
         <div className="flex items-center gap-3">
           <button 
             type="button"
-            onClick={() => { alert(t('draftSaved')); onBack(); }}
+            onClick={() => { setAppNotice({ type: 'success', message: '草稿已保存' }); onBack(); }}
             className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
           >
-            {t('saveDraft')}
+            存草稿
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }}
+            onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }}
             className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
           >
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }}
+            onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功' }); onBack(); }}
             className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
           >
             {t('submit')}
@@ -2883,7 +3089,6 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitReques
 };
 
 const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onSubmitRequest }: { onBack: () => void; title?: string; currentUser?: any; onSubmitRequest?: (title: string) => void }) => {
-  const { t } = useI18n();
   const [needVehicle, setNeedVehicle] = useState(true);
   const [needBaggage, setNeedBaggage] = useState(true);
   const [needHotel, setNeedHotel] = useState(true);
@@ -2925,36 +3130,36 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
               <Plane className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
+              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
+            <Sparkles className="w-3.5 h-3.5" /> AI 助手
           </button>
-          <button type="button" onClick={() => alert(t('openDraftBox')) } className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> {t('draftBox')} (2)
+          <button type="button" onClick={() => setAppNotice({ type: 'info', message: '打开草稿箱' }) } className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
+            <History className="w-3.5 h-3.5" /> 草稿箱 (2)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button 
             type="button"
-            onClick={() => { alert(t('draftSaved')); onBack(); }}
+            onClick={() => { setAppNotice({ type: 'success', message: '草稿已保存' }); onBack(); }}
             className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all"
           >
-            {t('saveDraft')}
+            存草稿
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }}
+            onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }}
             className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all"
           >
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }}
+            onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功' }); onBack(); }}
             className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all"
           >
             {t('submit')}
@@ -3325,14 +3530,14 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          {t('autoSavedDraft')} 19:37:59
+          系统已自动保存草稿 19:37:59
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all">
-            {t('saveDraft')}
+            存草稿
           </button>
           <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            {t('submitAndContinue')}
+            提交并继续创建
           </button>
           <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             {t('submit')}
@@ -3733,7 +3938,7 @@ const TravelRequestReport = () => {
             <MessageSquare className="w-4 h-4 cursor-pointer hover:text-blue-600" />
             <div className="flex items-center gap-1 cursor-pointer hover:text-blue-600">
               <Library className="w-4 h-4" />
-              <span className="text-xs">{t('draftBox')}</span>
+              <span className="text-xs">草稿箱</span>
             </div>
           </div>
           <button className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors">
@@ -4037,7 +4242,7 @@ const WorkflowConfig = ({ category }: { category?: string }) => {
             </div>
             <div className="px-8 py-6 bg-white border-t border-gray-100 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl font-bold hover:bg-gray-50 transition-all">取消</button>
-              <button onClick={() => { alert('保存成功'); setIsModalOpen(false); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">保存流程</button>
+              <button onClick={() => { setAppNotice({ type: 'success', message: '保存成功' }); setIsModalOpen(false); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">保存流程</button>
             </div>
           </motion.div>
         </div>
@@ -4321,7 +4526,7 @@ const AddressBook = () => {
             </div>
             <div className="px-8 py-6 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl font-semibold hover:bg-gray-50 transition-all">取消</button>
-              <button onClick={() => { alert('保存成功'); setIsModalOpen(false); }} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all">确定</button>
+              <button onClick={() => { setAppNotice({ type: 'success', message: '保存成功' }); setIsModalOpen(false); }} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all">确定</button>
             </div>
           </motion.div>
         </div>
@@ -4540,9 +4745,9 @@ const ReimbursementForm = ({ onClose, onSubmitRequest }: { onClose: () => void; 
             <span className="text-sm text-gray-500">继续创建时，保留本次提交内容</span>
           </label>
           <div className="flex gap-3">
-            <button type="button" onClick={() => alert('草稿已保存')} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">{t('saveDraft')}</button>
-            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">{t('submitAndContinue')}</button>
-            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); alert(t('submitSuccess')); onClose(); }} className="px-8 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all">提交</button>
+            <button type="button" onClick={() => setAppNotice({ type: 'success', message: '草稿已保存' })} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">存草稿</button>
+            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">提交并继续创建</button>
+            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); setAppNotice({ type: 'success', message: '提交成功' }); onClose(); }} className="px-8 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all">提交</button>
           </div>
         </div>
       </div>
@@ -4588,9 +4793,9 @@ const NoticeDetailModal = ({ notice, onClose }: { notice: Notice; onClose: () =>
                 <User className="w-4 h-4" />
                 <span>发布人：{notice.creator}</span>
               </div>
-                <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4" />
-                <span>{`Published: ${notice.createTime}`}</span>
+                <span>发布时间：{notice.createTime}</span>
               </div>
             </div>
           </div>
@@ -4616,10 +4821,15 @@ const NoticeDetailModal = ({ notice, onClose }: { notice: Notice; onClose: () =>
 };
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(() => {
-    // null = 未确定（正在验证），true = 已验证通过，false = 未认证
-    return null;
-  });
+  const [appError, setAppError] = useState<{ title: string; message: string } | null>(null);
+  const [appNotice, setAppNotice] = useState<{ type?: 'success' | 'info'; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!appNotice) return;
+    const t = setTimeout(() => setAppNotice(null), 3000);
+    return () => clearTimeout(t);
+  }, [appNotice]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [users, setUsers] = useState([
     { id: 1, username: 'admin', nickname: '管理员', dept: '研发部', phone: '13800000000', status: true, createTime: '2026-01-01 12:00:00' },
@@ -4635,170 +4845,74 @@ export default function App() {
   const [chats, setChats] = useState<ChatItem[]>(INITIAL_CHATS);
   const [activeChatId, setActiveChatId] = useState<number>(INITIAL_CHATS[0]?.id || 0);
   const [selectedNoticeForView, setSelectedNoticeForView] = useState<Notice | null>(null);
-  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [expenseCategoryOptions, setExpenseCategoryOptions] = useState<string[]>(DEFAULT_EXPENSE_CATEGORY_OPTIONS);
-  const [bankOptions, setBankOptions] = useState<string[]>(DEFAULT_BANK_OPTIONS);
-  const [paymentMethodOptions, setPaymentMethodOptions] = useState<string[]>(DEFAULT_PAYMENT_METHOD_OPTIONS);
-  const unreadNoticeCount = notices.filter((n) => n.status && !n.isRead).length;
-
-  const loadUsers = useCallback(async () => {
-    const data = await userService.getAll();
-    const mapped = data.map((u: any) => ({
-      id: u.id,
-      username: u.username,
-      nickname: u.nickname || u.firstName || '',
-      dept: u.dept || '',
-      phone: u.phone || '',
-      status: u.status === 'ACTIVE' || u.status === true,
-      createTime: new Date(u.createdAt).toLocaleString(),
-    }));
-    if (mapped.length > 0) {
-      setUsers(mapped);
-    }
-  }, []);
-
-  const loadNotices = useCallback(async () => {
-    const data = await systemConfigService.getNotices();
-    const mapped: Notice[] = data.map((n: any) => ({
-      id: Number(n.id),
-      title: n.title || '未命名公告',
-      type: n.type || '通知',
-      status: Boolean(n.status),
-      creator: n.creator || 'system',
-      createTime: n.createdAt ? new Date(n.createdAt).toLocaleString() : '',
-      content: n.content || '',
-      isNew: Boolean(n.isNew),
-      isRead: Boolean(n.isRead),
-    }));
-
-    if (mapped.length > 0) {
-      setNotices(mapped);
-    }
-  }, []);
-
-  const loadWorkflowRequests = useCallback(async () => {
-    const data = await workflowService.getAll();
-
-    const statusMap: Record<string, WorkflowStatus> = {
-      DRAFT: '草稿',
-      ACTIVE: '待审批',
-      ARCHIVED: '已通过',
-    };
-
-    const typeMap: Record<string, string> = {
-      TRAVEL_REQUEST: '出差申请',
-      LEAVE_REQUEST: '请假申请',
-      PURCHASE_ORDER: '采购申请',
-      EXPENSE_REIMBURSEMENT: '报销申请',
-    };
-
-    const mapped: WorkflowRequest[] = data.map((item: any) => ({
-      id: String(item.id),
-      type: typeMap[item.type] || item.type || '流程申请',
-      applicant: item.creator?.nickname || item.creator?.username || item.createdBy || '系统用户',
-      dept: item.creator?.dept || '未分配部门',
-      createTime: item.createdAt ? new Date(item.createdAt).toLocaleString() : '',
-      status: statusMap[item.status] || '待审批',
-      currentNode: item.status === 'ARCHIVED' ? '归档' : '流程处理中',
-      approver: '管理员',
-      summary: item.description || item.title || '暂无摘要',
-    }));
-
-    if (mapped.length > 0) {
-      setWorkflowRequests(mapped);
-    }
-  }, []);
-
-  const loadFinanceDictionaryOptions = useCallback(async () => {
-    const data = await systemConfigService.getDicts();
-    const expenseOptions = Array.from(
-      new Set(
-        data
-          .filter((item: any) => item.status && String(item.type).toLowerCase() === 'expense_category')
-          .map((item: any) => String(item.name || '').trim())
-          .filter(Boolean)
-      )
-    );
-    const bankDictOptions = Array.from(
-      new Set(
-        data
-          .filter((item: any) => item.status && String(item.type).toLowerCase() === 'bank_name')
-          .map((item: any) => String(item.name || '').trim())
-          .filter(Boolean)
-      )
-    );
-    const paymentDictOptions = Array.from(
-      new Set(
-        data
-          .filter((item: any) => item.status && String(item.type).toLowerCase() === 'payment_method')
-          .map((item: any) => String(item.name || '').trim())
-          .filter(Boolean)
-      )
-    );
-
-    setExpenseCategoryOptions(expenseOptions.length > 0 ? expenseOptions : DEFAULT_EXPENSE_CATEGORY_OPTIONS);
-    setBankOptions(bankDictOptions.length > 0 ? bankDictOptions : DEFAULT_BANK_OPTIONS);
-    setPaymentMethodOptions(paymentDictOptions.length > 0 ? paymentDictOptions : DEFAULT_PAYMENT_METHOD_OPTIONS);
-  }, []);
+  const prevActivePageRef = useRef<Page>('workbench');
+  const [formBackPage, setFormBackPage] = useState<Page>('apps');
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests(), loadFinanceDictionaryOptions()]);
-  }, [isAuthenticated, loadUsers, loadNotices, loadWorkflowRequests, loadFinanceDictionaryOptions]);
+    const isFormPage = activePage === 'travel-request' || (activePage.startsWith('apps-') && activePage.split('-').length === 3);
+    if (isFormPage) {
+      const fromPage = prevActivePageRef.current;
+      setFormBackPage(fromPage === 'workbench' ? 'workbench' : 'apps');
+    }
+    prevActivePageRef.current = activePage;
+  }, [activePage]);
 
-  // 页面首次加载：如果存在 access_token，则校验它；否则直接进入未登录状态
   useEffect(() => {
-    const verify = async () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          setIsAuthenticated(false);
-          setCurrentUser(null);
-          return;
-        }
-
-        const res = await api.get('/auth/me');
-        const u = res.data;
-        setCurrentUser({
+    userService.getAll()
+      .then((data) => {
+        const mapped = data.map((u: any) => ({
           id: u.id,
-          username: u.username || u.email || '',
-          nickname: u.username || u.email || '',
-          dept: '',
-          phone: '',
-          status: true,
-        });
-        setIsAuthenticated(true);
-      } catch (err) {
-        localStorage.removeItem('access_token');
-        setIsAuthenticated(false);
-        setCurrentUser(null);
-      }
-    };
-
-    verify();
+          username: u.username,
+          nickname: u.nickname || u.firstName || '',
+          dept: u.dept || '',
+          phone: u.phone || '',
+          status: u.status === 'ACTIVE' || u.status === true,
+          createTime: new Date(u.createdAt).toLocaleString(),
+        }));
+        if (mapped.length > 0) {
+          setUsers(mapped);
+        }
+      })
+      .catch(() => {
+        // Keep local mock users when backend is unreachable.
+      });
   }, []);
-
-  const handleSoftRefresh = async () => {
-    if (isRefreshing) return;
-
-    setIsRefreshing(true);
-    try {
-      await Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests(), loadFinanceDictionaryOptions()]);
-    } catch {
-      // Keep current data when backend is unreachable.
-    } finally {
-      setTimeout(() => setIsRefreshing(false), 250);
-    }
-  };
 
   const handleLogin = async (username: string, password: string) => {
+    const loginWithLocalUser = () => {
+      const normalized = username.trim().toLowerCase();
+      const localUser = users.find((u) => u.username.toLowerCase() === normalized);
+
+      if (!localUser) {
+        setAppError({ title: '登录失败', message: '用户名不存在' });
+        return;
+      }
+
+      if (!localUser.status) {
+        setAppError({ title: '登录失败', message: '该账号已停用' });
+        return;
+      }
+
+      setIsAuthenticated(true);
+      setCurrentUser({
+        id: localUser.id,
+        username: localUser.username,
+        nickname: localUser.nickname || localUser.username,
+        dept: localUser.dept || '',
+        phone: localUser.phone || '',
+        status: true,
+        avatar: getUserAvatarFromStorage(localUser.username),
+        statusSignature: getUserStatusFromStorage(localUser.username),
+      });
+      markUserOnline(localUser.username);
+    };
+
     try {
       const res = await authService.login({ username, password });
       const localUser = users.find((u) => u.username === res.user.username);
 
       if (localUser && !localUser.status) {
-        alert('该账号已停用');
+        setAppError({ title: '登录失败', message: '该账号已停用' });
         return;
       }
 
@@ -4810,22 +4924,61 @@ export default function App() {
         dept: localUser?.dept || '',
         phone: localUser?.phone || '',
         status: true,
+        avatar: getUserAvatarFromStorage(res.user.username),
+        statusSignature: getUserStatusFromStorage(res.user.username),
       });
+      markUserOnline(res.user.username);
     } catch (error: any) {
+      const statusCode = error?.response?.status;
+      const isBackendUnavailable = !statusCode || statusCode >= 500;
+      if (isBackendUnavailable) {
+        loginWithLocalUser();
+        if (users.some((u) => u.username.toLowerCase() === username.trim().toLowerCase())) {
+          setAppError({ title: '警告', message: '后端暂不可用，已切换本地登录模式' });
+        }
+        return;
+      }
+
       const message = error?.response?.data?.message;
       if (typeof message === 'string') {
-        alert(`登录失败：${message}`);
+        setAppError({ title: '登录失败', message });
       } else {
-        alert('登录失败，请确认后端已启动并可用');
+        setAppError({ title: '登录失败', message: '请确认后端已启动并可用' });
       }
     }
   };
 
   const handleLogout = () => {
-    authService.logout();
+    markUserOffline(currentUser?.username);
     setIsAuthenticated(false);
     setCurrentUser(null);
     setActivePage('workbench');
+  };
+
+  const handleUpdateAvatar = (avatarDataUrl: string) => {
+    setCurrentUser((prev: any) => {
+      if (!prev) return prev;
+      try {
+        saveUserAvatarToStorage(prev.username, avatarDataUrl);
+      } catch (err) {
+        setAppError({ title: '保存失败', message: '头像保存到本地失败，可能空间不足或浏览器限制' });
+      }
+      return { ...prev, avatar: avatarDataUrl };
+    });
+  };
+
+  const handleUpdateStatusSignature = (statusText: string) => {
+    setCurrentUser((prev: any) => {
+      if (!prev) return prev;
+      saveUserStatusToStorage(prev.username, statusText);
+      return { ...prev, statusSignature: statusText };
+    });
+
+    setChats((prev) => prev.map((chat) => {
+      if (chat.type !== 'direct') return chat;
+      if (normalizeAccount(chat.userAccount) !== normalizeAccount(currentUser?.username)) return chat;
+      return { ...chat, signature: statusText };
+    }));
   };
 
   const handleMarkAsRead = (id: number) => {
@@ -4891,36 +5044,64 @@ export default function App() {
     setWorkflowRequests(prev => prev.map(item => item.id === id ? { ...item, status: '已驳回', currentNode: '申请人修改', approver: currentUser?.nickname || currentUser?.username || '管理员' } : item));
   };
 
-  if (isAuthenticated === null) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-gray-500">验证中...</div>
-      </div>
-    );
-  }
-
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
 
+  // 点击铃铛时定位到第一个未读或最新会话，由 handleBellClick 处理（声明已在上方）
+  const handleBellClick = () => {
+    const sorted = sortChatsByUnreadAndTime(chats);
+    const target = sorted.find(chat => chat.unread > 0) || sorted[0];
+    setActivePage('chat');
+    setActiveChatId(target ? target.id : null);
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans text-gray-900">
+      {appError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setAppError(null)} />
+          <div className="relative bg-white rounded-xl p-6 z-60 w-full max-w-md mx-4 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-lg font-semibold text-gray-900">{appError.title}</div>
+                <div className="mt-2 text-sm text-gray-600">{appError.message}</div>
+              </div>
+              <button onClick={() => setAppError(null)} aria-label="关闭" className="rounded-full p-1 bg-gray-100 hover:bg-gray-200">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setAppError(null)} className="px-4 py-2 bg-blue-600 text-white rounded-lg">确定</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {appNotice && (
+        <div className="fixed left-1/2 bottom-8 z-50 -translate-x-1/2">
+          <div className="bg-white border border-green-100 shadow-md rounded-lg px-4 py-3 flex items-center gap-3 min-w-[240px]">
+            <div className="w-3 h-3 bg-green-500 rounded-full" />
+            <div className="flex-1 text-sm text-gray-700">{appNotice.message}</div>
+            <button onClick={() => setAppNotice(null)} className="text-gray-400 hover:text-gray-600 ml-2">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       <Sidebar activePage={activePage} setActivePage={setActivePage} />
 
       <main className="flex-1 flex flex-col">
         <Header
           user={currentUser}
           onLogout={handleLogout}
-          searchQuery={globalSearchQuery}
-          onSearchChange={setGlobalSearchQuery}
-          onNavigate={setActivePage}
-          onOpenNoticeCenter={() => setActivePage('sys-notice')}
-          onRefresh={handleSoftRefresh}
           onGoHome={() => setActivePage('workbench')}
-          unreadNoticeCount={unreadNoticeCount}
-          isRefreshing={isRefreshing}
+          onUpdateAvatar={handleUpdateAvatar}
+          onUpdateStatus={handleUpdateStatusSignature}
+          onBellClick={handleBellClick}
+          onError={setAppError}
+          chats={chats}
         />
-
+        
         <div className="flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
             {activePage === 'workbench' && (
@@ -4968,15 +5149,15 @@ export default function App() {
                 className="h-full"
               >
                 {(() => {
-                  const props = { onBack: () => setActivePage('apps') };
+                  const props = { onBack: () => setActivePage(formBackPage) };
                   switch (activePage) {
                     case 'apps-hr-leave': return <LeaveRequestForm {...props} title="请假申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-hr-training': return <TrainingRequestForm {...props} title="培训申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-hr-stamp': return <StampRequestForm {...props} title="用印申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-hr-travel': 
                     case 'travel-request': return <TravelRequestForm {...props} title="出差申请" currentUser={currentUser} onSubmitRequest={handleSubmitWorkflow} />;
-                    case 'apps-finance-reimbursement': return <ReimbursementRequestForm {...props} title="报销申请" onSubmitRequest={handleSubmitWorkflow} expenseCategoryOptions={expenseCategoryOptions} bankOptions={bankOptions} />;
-                    case 'apps-finance-payment': return <PaymentRequestForm {...props} title="付款申请" onSubmitRequest={handleSubmitWorkflow} paymentMethodOptions={paymentMethodOptions} />;
+                    case 'apps-finance-reimbursement': return <ReimbursementRequestForm {...props} title="报销申请" onSubmitRequest={handleSubmitWorkflow} />;
+                    case 'apps-finance-payment': return <PaymentRequestForm {...props} title="付款申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-finance-invoice': return <InvoiceRequestForm {...props} title="开票申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-supply-procurement': return <ProcurementRequestForm {...props} title="采购申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-supply-requisition': return <RequisitionRequestForm {...props} title="领用申请" onSubmitRequest={handleSubmitWorkflow} />;
@@ -5034,6 +5215,7 @@ export default function App() {
                   setChats={setChats}
                   activeChatId={activeChatId}
                   setActiveChatId={setActiveChatId}
+                  currentUser={currentUser}
                   onClose={() => setActivePage('workbench')}
                 />
               </motion.div>
@@ -5110,5 +5292,3 @@ export default function App() {
     </div>
   );
 }
-
-
