@@ -25,6 +25,61 @@ interface PageProps {
   title: string;
 }
 
+type SystemDialogState = {
+  title: string;
+  message: string;
+} | null;
+
+let setSystemDialogBridge: React.Dispatch<React.SetStateAction<SystemDialogState>> = () => {};
+
+const alert = (message?: unknown) => {
+  const text = typeof message === 'string' ? message : String(message ?? '');
+  setSystemDialogBridge({ title: '系统提示', message: text });
+};
+
+const SystemDialogHost = () => {
+  const [dialog, setDialog] = useState<SystemDialogState>(null);
+
+  useEffect(() => {
+    setSystemDialogBridge = setDialog;
+    return () => {
+      setSystemDialogBridge = () => {};
+    };
+  }, []);
+
+  if (!dialog) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+      >
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-gray-900">{dialog.title}</h3>
+          <button
+            onClick={() => setDialog(null)}
+            aria-label="关闭"
+            className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="px-6 py-6 text-sm text-gray-700 leading-6">{dialog.message}</div>
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+          <button
+            onClick={() => setDialog(null)}
+            className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all"
+          >
+            关闭
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const TableHeader = ({ children }: { children: React.ReactNode }) => (
   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-gray-50/50">
     {children}
@@ -454,6 +509,7 @@ export const UserManagement = ({
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
+      <SystemDialogHost />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
         <p className="text-gray-500 mt-1">{t('roleManageDescription')}</p>
@@ -785,6 +841,7 @@ export const RoleManagement = ({ title }: PageProps) => {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
+      <SystemDialogHost />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
         <p className="text-gray-500 mt-1">{t('roleManageDescription')}</p>
@@ -1185,6 +1242,7 @@ export const MenuManagement = ({ title }: PageProps) => {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
+      <SystemDialogHost />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
         <p className="text-gray-500 mt-1">{t('menuManageDescription')}</p>
@@ -1397,6 +1455,7 @@ export const DeptManagement = ({ title }: PageProps) => {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
+      <SystemDialogHost />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
         <p className="text-gray-500 mt-1">{t('deptManageDescription')}</p>
@@ -1603,6 +1662,7 @@ export const PostManagement = ({ title }: PageProps) => {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
+      <SystemDialogHost />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
         <p className="text-gray-500 mt-1">{t('postManageDescription')}</p>
@@ -1861,6 +1921,7 @@ export const DictManagement = ({ title }: PageProps) => {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
+      <SystemDialogHost />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
         <p className="text-gray-500 mt-1">{t('dictManageDescription')}</p>
@@ -2486,6 +2547,7 @@ export const NoticeManagement = ({ title, notices, setNotices, onMarkAsRead, onO
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
+      <SystemDialogHost />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
         <p className="text-gray-500 mt-1">{t('noticeManageDescription')}</p>

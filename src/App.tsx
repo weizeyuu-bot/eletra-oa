@@ -144,6 +144,21 @@ type ChatItem = {
   signature?: string;
 };
 
+type AppErrorState = { title: string; message: string } | null;
+type AppNoticeState = { type?: 'success' | 'info'; message: string } | null;
+
+// Bridge top-level helper components with App-level state setters.
+let setAppErrorBridge: React.Dispatch<React.SetStateAction<AppErrorState>> = () => {};
+let setAppNoticeBridge: React.Dispatch<React.SetStateAction<AppNoticeState>> = () => {};
+
+const setAppError = (value: AppErrorState) => {
+  setAppErrorBridge(value);
+};
+
+const setAppNotice = (value: AppNoticeState) => {
+  setAppNoticeBridge(value);
+};
+
 const createDefaultTravelDetail = (applicant: string, dept: string): TravelRequestDetail => ({
   name: applicant,
   costCenter: dept || 'FISCAL ELETRA',
@@ -1996,22 +2011,52 @@ const ApprovalGroups = ({
 }) => {
   const [tab, setTab] = useState<WorkflowTab>(initialTab);
   const [selectedRequest, setSelectedRequest] = useState<WorkflowRequest | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageInput, setPageInput] = useState('1');
+  const pageSize = 10;
 
   React.useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
 
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [tab]);
+
   const currentDisplayName = currentUser?.nickname || currentUser?.username || '管理员';
+  const currentUserNameSet = new Set([
+    normalizeAccount(currentUser?.nickname),
+    normalizeAccount(currentUser?.username),
+  ].filter(Boolean));
   const pendingItems = workflowRequests.filter(item => item.status === '待审批');
-  const submittedItems = workflowRequests.filter(item => item.applicant === currentDisplayName);
+  const submittedItems = workflowRequests.filter(item => currentUserNameSet.has(normalizeAccount(item.applicant)));
   const processedItems = workflowRequests.filter(item => item.status !== '待审批');
   const visibleItems = tab === 'pending' ? pendingItems : tab === 'submitted' ? submittedItems : processedItems;
+  const totalPages = Math.max(1, Math.ceil(visibleItems.length / pageSize));
+  const pageStart = (currentPage - 1) * pageSize;
+  const pagedItems = visibleItems.slice(pageStart, pageStart + pageSize);
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
+
+  const goToPage = (page: number) => {
+    const next = Math.min(totalPages, Math.max(1, page));
+    setCurrentPage(next);
+  };
+
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  React.useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">流程待办中心</h2>
+          <h2 className="text-2xl font-bold text-gray-800">流程审批中心</h2>
           <p className="text-sm text-gray-400 mt-1">统一处理待审批、我发起和已处理流程</p>
         </div>
         <div className="flex items-center gap-3 text-sm">
@@ -2043,7 +2088,7 @@ const ApprovalGroups = ({
           {visibleItems.length === 0 && (
             <div className="py-16 text-center text-gray-400">当前分类暂无流程记录</div>
           )}
-          {visibleItems.map(item => (
+          {pagedItems.map(item => (
             <div key={item.id} className="px-6 py-5 flex items-center justify-between gap-6 hover:bg-gray-50/50 transition-colors">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-3 mb-2 flex-wrap">
@@ -2074,6 +2119,58 @@ const ApprovalGroups = ({
             </div>
           ))}
         </div>
+        {visibleItems.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <span className="text-gray-400">第 {currentPage} / {totalPages} 页，共 {visibleItems.length} 条</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-200 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                上一页
+              </button>
+              {pageNumbers.map((pageNo) => (
+                <button
+                  key={pageNo}
+                  onClick={() => goToPage(pageNo)}
+                  className={`px-3 py-1.5 rounded-lg border transition-colors ${pageNo === currentPage ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 text-gray-600 hover:border-blue-200 hover:text-blue-600'}`}
+                >
+                  {pageNo}
+                </button>
+              ))}
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-200 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                下一页
+              </button>
+              <div className="flex items-center gap-2 ml-2">
+                <span className="text-gray-400">跳转到</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={pageInput}
+                  onChange={(e) => setPageInput(e.target.value)}
+                  className="w-16 px-2 py-1.5 rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  onClick={() => {
+                    const target = Number.parseInt(pageInput, 10);
+                    if (!Number.isNaN(target)) {
+                      goToPage(target);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-200 hover:text-blue-600 transition-colors"
+                >
+                  跳转
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
@@ -3088,14 +3185,16 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitReques
   );
 };
 
-const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onSubmitRequest }: { onBack: () => void; title?: string; currentUser?: any; onSubmitRequest?: (title: string) => void }) => {
+const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onSubmitRequest }: { onBack: () => void; title?: string; currentUser?: any; onSubmitRequest?: (title: string, payload?: { applicantName?: string; reason?: string }) => void }) => {
   const [needVehicle, setNeedVehicle] = useState(true);
   const [needBaggage, setNeedBaggage] = useState(true);
   const [needHotel, setNeedHotel] = useState(true);
+  const [travelReason, setTravelReason] = useState('业务洽谈 (Negócios)');
   const [segments, setSegments] = useState([
     { id: 1, from: 'MANAUS', to: 'CEARA', dateTime: '2026-03-08T08:25' },
     { id: 2, from: 'CEARA', to: 'MANAUS', dateTime: '2026-03-20T14:20' },
   ]);
+  const applicantName = currentUser?.username || '';
 
   const brazilCities = [
     'São Paulo', 'Rio de Janeiro', 'Brasília', 'Salvador', 'Fortaleza', 
@@ -3152,14 +3251,21 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' }); }}
+            onClick={() => {
+              onSubmitRequest?.(title, { applicantName, reason: travelReason });
+              setAppNotice({ type: 'success', message: '提交成功，正在创建下一条...' });
+            }}
             className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all"
           >
             提交并继续创建
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); setAppNotice({ type: 'success', message: '提交成功' }); onBack(); }}
+            onClick={() => {
+              onSubmitRequest?.(title, { applicantName, reason: travelReason });
+              setAppNotice({ type: 'success', message: '提交成功' });
+              onBack();
+            }}
             className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all"
           >
             {t('submit')}
@@ -3187,7 +3293,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('fullNameLabel')}</label>
                 <div className="relative">
-                  <input type="text" defaultValue={currentUser?.nickname || currentUser?.username || ''} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
+                  <input type="text" value={applicantName} readOnly className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
                   <Search className="w-4 h-4 text-gray-300 absolute right-3 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
@@ -3201,10 +3307,10 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('travelReasonLabel')}</label>
-                <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none cursor-pointer appearance-none">
-                  <option value="1">{t('travelReasonBusiness')}</option>
-                  <option value="2">{t('travelReasonTechSupport')}</option>
-                  <option value="3">{t('travelReasonInternalTraining')}</option>
+                <select value={travelReason} onChange={(e) => setTravelReason(e.target.value)} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none cursor-pointer appearance-none">
+                  <option value="业务洽谈 (Negócios)">业务洽谈 (Negócios)</option>
+                  <option value="技术支持 (Suporte Técnico)">技术支持 (Suporte Técnico)</option>
+                  <option value="内部培训 (Treinamento)">内部培训 (Treinamento)</option>
                 </select>
               </div>
               <div className="md:col-span-3 space-y-1.5">
@@ -4821,12 +4927,21 @@ const NoticeDetailModal = ({ notice, onClose }: { notice: Notice; onClose: () =>
 };
 
 export default function App() {
-  const [appError, setAppError] = useState<{ title: string; message: string } | null>(null);
-  const [appNotice, setAppNotice] = useState<{ type?: 'success' | 'info'; message: string } | null>(null);
+  const [appError, setAppErrorState] = useState<AppErrorState>(null);
+  const [appNotice, setAppNoticeState] = useState<AppNoticeState>(null);
+
+  useEffect(() => {
+    setAppErrorBridge = setAppErrorState;
+    setAppNoticeBridge = setAppNoticeState;
+    return () => {
+      setAppErrorBridge = () => {};
+      setAppNoticeBridge = () => {};
+    };
+  }, [setAppErrorState, setAppNoticeState]);
 
   useEffect(() => {
     if (!appNotice) return;
-    const t = setTimeout(() => setAppNotice(null), 3000);
+    const t = setTimeout(() => setAppNoticeState(null), 3000);
     return () => clearTimeout(t);
   }, [appNotice]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -4996,7 +5111,7 @@ export default function App() {
     setActivePage('chat');
   };
 
-  const handleSubmitWorkflow = (type: string) => {
+  const handleSubmitWorkflow = (type: string, payload?: { applicantName?: string; reason?: string }) => {
     const prefixMap: Record<string, string> = {
       '出差申请': 'TR',
       '请假申请': 'LV',
@@ -5012,9 +5127,17 @@ export default function App() {
     const now = new Date();
     const datePart = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
     const timePart = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-    const applicant = currentUser?.nickname || currentUser?.username || '管理员';
+    const defaultApplicant = currentUser?.nickname || currentUser?.username || '管理员';
+    const travelApplicant = currentUser?.username || defaultApplicant;
+    const applicant = type === '出差申请'
+      ? (payload?.applicantName?.trim() || travelApplicant)
+      : defaultApplicant;
     const dept = currentUser?.dept || '未分配部门';
     const prefix = prefixMap[type] || 'WF';
+    const travelReason = payload?.reason?.trim() || '业务洽谈 (Negócios)';
+    const summary = type === '出差申请'
+      ? `${applicant}${travelReason}`
+      : `${applicant} 提交了${type}，等待审批处理。`;
 
     setWorkflowRequests(prev => {
       const sameTypeCount = prev.filter(item => item.type === type).length + 1;
@@ -5028,7 +5151,7 @@ export default function App() {
           status: '待审批',
           currentNode: '部门审批',
           approver: '管理员',
-          summary: `${applicant} 提交了${type}，等待审批处理。`,
+          summary,
           ...(type === '出差申请' ? { travelDetail: createDefaultTravelDetail(applicant, dept) } : {}),
         },
         ...prev,
@@ -5060,19 +5183,19 @@ export default function App() {
     <div className="flex min-h-screen bg-gray-50 font-sans text-gray-900">
       {appError && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setAppError(null)} />
+          <div className="absolute inset-0 bg-black/40" onClick={() => setAppErrorState(null)} />
           <div className="relative bg-white rounded-xl p-6 z-60 w-full max-w-md mx-4 shadow-lg">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-lg font-semibold text-gray-900">{appError.title}</div>
                 <div className="mt-2 text-sm text-gray-600">{appError.message}</div>
               </div>
-              <button onClick={() => setAppError(null)} aria-label="关闭" className="rounded-full p-1 bg-gray-100 hover:bg-gray-200">
+              <button onClick={() => setAppErrorState(null)} aria-label="关闭" className="rounded-full p-1 bg-gray-100 hover:bg-gray-200">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="mt-4 flex justify-end">
-              <button onClick={() => setAppError(null)} className="px-4 py-2 bg-blue-600 text-white rounded-lg">确定</button>
+              <button onClick={() => setAppErrorState(null)} className="px-4 py-2 bg-blue-600 text-white rounded-lg">确定</button>
             </div>
           </div>
         </div>
