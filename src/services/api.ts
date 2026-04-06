@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+let redirectingToLogin = false;
+
 const env = (import.meta as any).env || {};
 
 const resolveApiBaseUrl = () => {
@@ -40,7 +42,11 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('access_token');
-      window.location.href = '/login';
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && !redirectingToLogin) {
+        redirectingToLogin = true;
+        window.location.replace('/login');
+      }
     }
     return Promise.reject(error);
   }

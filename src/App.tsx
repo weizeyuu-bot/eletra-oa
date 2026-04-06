@@ -4543,7 +4543,10 @@ const NoticeDetailModal = ({ notice, onClose }: { notice: Notice; onClose: () =>
 };
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return Boolean(localStorage.getItem('access_token'));
+  });
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [users, setUsers] = useState([
     { id: 1, username: 'admin', nickname: '管理员', dept: '研发部', phone: '13800000000', status: true, createTime: '2026-01-01 12:00:00' },
@@ -4632,8 +4635,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests()]);
-  }, [loadUsers, loadNotices, loadWorkflowRequests]);
+  }, [isAuthenticated, loadUsers, loadNotices, loadWorkflowRequests]);
 
   const handleSoftRefresh = async () => {
     if (isRefreshing) return;
