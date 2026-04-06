@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard,
   Grid,
@@ -67,6 +67,8 @@ import {
 } from './components/SystemManagement';
 import { authService } from './services/auth';
 import { userService } from './services/user';
+import { workflowService } from './services/workflow';
+import { systemConfigService } from './services/systemConfig';
 
 // --- Types ---
 type Notice = {
@@ -276,6 +278,125 @@ const ORG_STRUCTURE = [
   { name: '市场部', count: 18, children: ['品牌组', '渠道组'] },
   { name: '财务部', count: 8, children: [] },
 ];
+
+type SearchTarget = {
+  id: Page;
+  label: string;
+  keywords?: string[];
+};
+
+type SearchGroup = '流程申请' | '报表分析' | '系统设置' | '协作沟通' | '其他';
+
+const SEARCH_TARGETS: SearchTarget[] = [
+  { id: 'workbench', label: '门户首页', keywords: ['首页', '工作台', 'home'] },
+  { id: 'approvals', label: '流程待办', keywords: ['待办', '审批', 'daiban', 'shenpi'] },
+  { id: 'apps', label: '单据申请', keywords: ['申请中心', 'shenqing'] },
+  { id: 'apps-hr-travel', label: '出差申请', keywords: ['差旅', 'chuchai'] },
+  { id: 'apps-hr-leave', label: '请假申请', keywords: ['休假', 'qingjia'] },
+  { id: 'apps-hr-training', label: '培训申请', keywords: ['培训', 'peixun'] },
+  { id: 'apps-hr-stamp', label: '用印申请', keywords: ['盖章', 'yongyin'] },
+  { id: 'apps-finance-reimbursement', label: '报销申请', keywords: ['费用报销', 'baoxiao'] },
+  { id: 'apps-finance-payment', label: '付款申请', keywords: ['付款', 'fukuan'] },
+  { id: 'apps-finance-invoice', label: '发票申请', keywords: ['开票', 'fapiao'] },
+  { id: 'apps-supply-procurement', label: '采购申请', keywords: ['采购', 'caigou'] },
+  { id: 'apps-supply-requisition', label: '领用申请', keywords: ['领料', 'lingyong'] },
+  { id: 'chat', label: '在线沟通', keywords: ['聊天', '消息', 'chat'] },
+  { id: 'contacts', label: '通讯录', keywords: ['同事', '联系人', 'tongxunlu'] },
+  { id: 'reports', label: '报表中心', keywords: ['报表', 'baobiao'] },
+  { id: 'reports-hr-travel', label: '出差申请查询表', keywords: ['出差查询', 'chuchai'] },
+  { id: 'reports-hr-attendance', label: '考勤月度汇总表', keywords: ['考勤', 'kaoqin'] },
+  { id: 'reports-finance-expense', label: '费用报销统计表', keywords: ['报销统计', 'baoxiao'] },
+  { id: 'reports-supply-procurement', label: '采购执行明细表', keywords: ['采购明细', 'caigou'] },
+  { id: 'sys-user', label: '用户管理', keywords: ['系统用户'] },
+  { id: 'sys-role', label: '角色管理', keywords: ['权限角色'] },
+  { id: 'sys-menu', label: '菜单管理', keywords: ['菜单配置'] },
+  { id: 'sys-dept', label: '部门管理', keywords: ['组织架构'] },
+  { id: 'sys-post', label: '岗位管理', keywords: ['岗位'] },
+  { id: 'sys-dict', label: '字典管理', keywords: ['字典'] },
+  { id: 'sys-notice', label: '通知公告管理', keywords: ['公告'] },
+  { id: 'workflow-config', label: '流程配置', keywords: ['流程设置'] },
+  { id: 'workflow-travel', label: '出差申请流程', keywords: ['出差流程'] },
+  { id: 'workflow-expense', label: '费用报销流程', keywords: ['报销流程'] },
+  { id: 'workflow-seal', label: '用印申请流程', keywords: ['用印流程'] },
+  { id: 'workflow-procurement', label: '采购申请流程', keywords: ['采购流程'] },
+  { id: 'fav', label: '我的收藏', keywords: ['收藏'] },
+];
+
+const normalizeSearchText = (value: string) => value.toLowerCase().replace(/\s+/g, '');
+
+const isSubsequenceMatch = (target: string, query: string) => {
+  let qi = 0;
+  for (let ti = 0; ti < target.length && qi < query.length; ti += 1) {
+    if (target[ti] === query[qi]) qi += 1;
+  }
+  return qi === query.length;
+};
+
+const fuzzySearchTargets = (targets: SearchTarget[], query: string) => {
+  const normalizedQuery = normalizeSearchText(query);
+  if (!normalizedQuery) return [];
+
+  return targets
+    .map((target) => {
+      const tokens = [target.label, ...(target.keywords || [])].map(normalizeSearchText);
+      let score = Number.MAX_SAFE_INTEGER;
+
+      for (const token of tokens) {
+        if (!token) continue;
+
+        if (token === normalizedQuery) {
+          score = Math.min(score, 0);
+          continue;
+        }
+
+        if (token.includes(normalizedQuery)) {
+          score = Math.min(score, 1 + Math.max(0, token.length - normalizedQuery.length));
+          continue;
+        }
+
+        if (isSubsequenceMatch(token, normalizedQuery)) {
+          score = Math.min(score, 20 + token.length);
+        }
+      }
+
+      return { target, score };
+    })
+    .filter((item) => item.score < Number.MAX_SAFE_INTEGER)
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 8)
+    .map((item) => item.target);
+};
+
+const SEARCH_HISTORY_KEY = 'oa-global-search-history';
+
+const getSearchGroup = (id: Page): SearchGroup => {
+  if (id.startsWith('apps') || id.startsWith('workflow')) return '流程申请';
+  if (id.startsWith('reports')) return '报表分析';
+  if (id.startsWith('sys')) return '系统设置';
+  if (id === 'chat' || id === 'contacts' || id === 'approvals') return '协作沟通';
+  return '其他';
+};
+
+const SEARCH_GROUP_ORDER: SearchGroup[] = ['流程申请', '报表分析', '系统设置', '协作沟通', '其他'];
+
+const renderHighlightedText = (text: string, query: string) => {
+  const trimmed = query.trim();
+  if (!trimmed) return text;
+
+  const lowerText = text.toLowerCase();
+  const lowerQuery = trimmed.toLowerCase();
+  const start = lowerText.indexOf(lowerQuery);
+  if (start === -1) return text;
+
+  const end = start + trimmed.length;
+  return (
+    <>
+      {text.slice(0, start)}
+      <span className="text-blue-600 font-semibold">{text.slice(start, end)}</span>
+      {text.slice(end)}
+    </>
+  );
+};
 
 // --- Components ---
 
@@ -506,46 +627,223 @@ const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePag
   );
 };
 
-const Header = ({ user, onLogout }: { user: any; onLogout: () => void }) => (
-  <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-10">
-    <div className="flex items-center gap-4 flex-1 max-w-xl">
-      <div className="relative w-full">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="搜索流程、公告、同事..."
-          className="w-full bg-gray-50 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-100 transition-all"
-        />
+const Header = ({
+  user,
+  onLogout,
+  searchQuery,
+  onSearchChange,
+  onNavigate,
+  onOpenNoticeCenter,
+  onRefresh,
+  onGoHome,
+  unreadNoticeCount,
+  isRefreshing,
+}: {
+  user: any;
+  onLogout: () => void;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+  onNavigate: (p: Page) => void;
+  onOpenNoticeCenter: () => void;
+  onRefresh: () => void;
+  onGoHome: () => void;
+  unreadNoticeCount: number;
+  isRefreshing: boolean;
+}) => {
+  const results = fuzzySearchTargets(SEARCH_TARGETS, searchQuery);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isFocused, setIsFocused] = useState(false);
+  const [history, setHistory] = useState<SearchTarget[]>([]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const raw = window.localStorage.getItem(SEARCH_HISTORY_KEY);
+      if (!raw) return;
+
+      const ids = JSON.parse(raw) as Page[];
+      const resolved = ids
+        .map((id) => SEARCH_TARGETS.find((item) => item.id === id))
+        .filter((item): item is SearchTarget => Boolean(item));
+
+      setHistory(resolved);
+    } catch {
+      setHistory([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [searchQuery]);
+
+  const persistHistory = (items: SearchTarget[]) => {
+    if (typeof window === 'undefined') return;
+
+    window.localStorage.setItem(
+      SEARCH_HISTORY_KEY,
+      JSON.stringify(items.map((item) => item.id))
+    );
+  };
+
+  const rememberTarget = (target: SearchTarget) => {
+    setHistory((prev) => {
+      const next = [target, ...prev.filter((item) => item.id !== target.id)].slice(0, 6);
+      persistHistory(next);
+      return next;
+    });
+  };
+
+  const selectTarget = (target: SearchTarget) => {
+    onNavigate(target.id);
+    onSearchChange('');
+    setActiveIndex(0);
+    setIsFocused(false);
+    rememberTarget(target);
+  };
+
+  const panelItems = searchQuery.trim() ? results : history;
+  const showPanel = isFocused && panelItems.length > 0;
+  const activeItem = panelItems[activeIndex];
+  const groupedPanelItems = SEARCH_GROUP_ORDER
+    .map((group) => ({
+      group,
+      items: panelItems
+        .map((item, index) => ({ item, index }))
+        .filter((entry) => getSearchGroup(entry.item.id) === group),
+    }))
+    .filter((entry) => entry.items.length > 0);
+
+  return (
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-10">
+      <div className="flex items-center gap-4 flex-1 max-w-xl">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="搜索流程、公告、同事..."
+            value={searchQuery}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+              setTimeout(() => setIsFocused(false), 120);
+            }}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown' && panelItems.length > 0) {
+                e.preventDefault();
+                setActiveIndex((prev) => (prev + 1) % panelItems.length);
+                return;
+              }
+
+              if (e.key === 'ArrowUp' && panelItems.length > 0) {
+                e.preventDefault();
+                setActiveIndex((prev) => (prev - 1 + panelItems.length) % panelItems.length);
+                return;
+              }
+
+              if (e.key === 'Enter' && activeItem) {
+                e.preventDefault();
+                selectTarget(activeItem);
+                return;
+              }
+
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                setIsFocused(false);
+              }
+            }}
+            className="w-full bg-gray-50 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-100 transition-all"
+          />
+          {showPanel && (
+            <div className="absolute top-12 left-0 right-0 bg-white border border-gray-100 rounded-2xl shadow-xl p-2 max-h-80 overflow-auto z-20">
+              {!searchQuery.trim() && (
+                <div className="px-3 py-1 text-xs text-gray-400">最近搜索</div>
+              )}
+              {groupedPanelItems.map(({ group, items }) => (
+                <div key={group} className="mb-1 last:mb-0">
+                  <div className="px-3 py-1 text-[11px] font-medium text-gray-400">{group}</div>
+                  {items.map(({ item, index }) => (
+                    <button
+                      key={item.id}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectTarget(item);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg ${
+                        index === activeIndex ? 'bg-blue-50' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="text-sm text-gray-700">
+                        {renderHighlightedText(item.label, searchQuery)}
+                      </div>
+                      {item.keywords?.[0] && (
+                        <div className="text-xs text-gray-400 mt-0.5">{item.keywords[0]}</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-    <div className="flex items-center gap-6">
-      <div className="flex items-center gap-4 text-gray-400">
-        <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border border-gray-100 mr-2">
-          <Languages className="w-3.5 h-3.5 text-gray-400" />
-          <div className="flex items-center gap-1.5 text-[10px] font-bold">
-            <span className="text-blue-600 cursor-pointer">中</span>
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">EN</span>
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">PT</span>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 text-gray-400">
+          <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border border-gray-100 mr-2">
+            <Languages className="w-3.5 h-3.5 text-gray-400" />
+            <div className="flex items-center gap-1.5 text-[10px] font-bold">
+              <span className="text-blue-600 cursor-pointer">中</span>
+              <span className="text-gray-300">|</span>
+              <span className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">EN</span>
+              <span className="text-gray-300">|</span>
+              <span className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">PT</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            title="通知公告"
+            aria-label="通知公告"
+            onClick={onOpenNoticeCenter}
+            className="relative"
+          >
+            <Bell className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
+            {unreadNoticeCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
+                {unreadNoticeCount > 99 ? '99+' : unreadNoticeCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            title="刷新页面"
+            aria-label="刷新页面"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+          >
+            <RotateCcw className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-blue-600' : 'cursor-pointer hover:text-gray-600'}`} />
+          </button>
+          <button
+            type="button"
+            title="返回首页"
+            aria-label="返回首页"
+            onClick={onGoHome}
+          >
+            <Home className="w-5 h-5 cursor-pointer hover:text-gray-600" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2 pl-4 border-l border-gray-100">
+          <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-medium text-sm">
+            {user?.nickname?.[0] || '王'}
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-gray-700">{user?.nickname || '王严严'}</span>
+            <button onClick={onLogout} className="text-[10px] text-gray-400 hover:text-red-500 text-left transition-colors">退出登录</button>
           </div>
         </div>
-        <Bell className="w-5 h-5 cursor-pointer hover:text-blue-600 transition-colors" />
-        <RotateCcw className="w-5 h-5 cursor-pointer hover:text-gray-600" />
-        <Home className="w-5 h-5 cursor-pointer hover:text-gray-600" />
       </div>
-      <div className="flex items-center gap-2 pl-4 border-l border-gray-100">
-        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-medium text-sm">
-          {user?.nickname?.[0] || '王'}
-        </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-gray-700">{user?.nickname || '王严严'}</span>
-          <button onClick={onLogout} className="text-[10px] text-gray-400 hover:text-red-500 text-left transition-colors">退出登录</button>
-        </div>
-      </div>
-    </div>
-  </header>
-);
+    </header>
+  );
+};
 
 const Workbench = ({ 
   onOpenForm, 
@@ -4261,27 +4559,94 @@ export default function App() {
   const [chats, setChats] = useState<ChatItem[]>(INITIAL_CHATS);
   const [activeChatId, setActiveChatId] = useState<number>(INITIAL_CHATS[0]?.id || 0);
   const [selectedNoticeForView, setSelectedNoticeForView] = useState<Notice | null>(null);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const unreadNoticeCount = notices.filter((n) => n.status && !n.isRead).length;
+
+  const loadUsers = useCallback(async () => {
+    const data = await userService.getAll();
+    const mapped = data.map((u: any) => ({
+      id: u.id,
+      username: u.username,
+      nickname: u.nickname || u.firstName || '',
+      dept: u.dept || '',
+      phone: u.phone || '',
+      status: u.status === 'ACTIVE' || u.status === true,
+      createTime: new Date(u.createdAt).toLocaleString(),
+    }));
+    if (mapped.length > 0) {
+      setUsers(mapped);
+    }
+  }, []);
+
+  const loadNotices = useCallback(async () => {
+    const data = await systemConfigService.getNotices();
+    const mapped: Notice[] = data.map((n: any) => ({
+      id: Number(n.id),
+      title: n.title || '未命名公告',
+      type: n.type || '通知',
+      status: Boolean(n.status),
+      creator: n.creator || 'system',
+      createTime: n.createdAt ? new Date(n.createdAt).toLocaleString() : '',
+      content: n.content || '',
+      isNew: Boolean(n.isNew),
+      isRead: Boolean(n.isRead),
+    }));
+
+    if (mapped.length > 0) {
+      setNotices(mapped);
+    }
+  }, []);
+
+  const loadWorkflowRequests = useCallback(async () => {
+    const data = await workflowService.getAll();
+
+    const statusMap: Record<string, WorkflowStatus> = {
+      DRAFT: '草稿',
+      ACTIVE: '待审批',
+      ARCHIVED: '已通过',
+    };
+
+    const typeMap: Record<string, string> = {
+      TRAVEL_REQUEST: '出差申请',
+      LEAVE_REQUEST: '请假申请',
+      PURCHASE_ORDER: '采购申请',
+      EXPENSE_REIMBURSEMENT: '报销申请',
+    };
+
+    const mapped: WorkflowRequest[] = data.map((item: any) => ({
+      id: String(item.id),
+      type: typeMap[item.type] || item.type || '流程申请',
+      applicant: item.creator?.nickname || item.creator?.username || item.createdBy || '系统用户',
+      dept: item.creator?.dept || '未分配部门',
+      createTime: item.createdAt ? new Date(item.createdAt).toLocaleString() : '',
+      status: statusMap[item.status] || '待审批',
+      currentNode: item.status === 'ARCHIVED' ? '归档' : '流程处理中',
+      approver: '管理员',
+      summary: item.description || item.title || '暂无摘要',
+    }));
+
+    if (mapped.length > 0) {
+      setWorkflowRequests(mapped);
+    }
+  }, []);
 
   useEffect(() => {
-    userService.getAll()
-      .then((data) => {
-        const mapped = data.map((u: any) => ({
-          id: u.id,
-          username: u.username,
-          nickname: u.nickname || u.firstName || '',
-          dept: u.dept || '',
-          phone: u.phone || '',
-          status: u.status === 'ACTIVE' || u.status === true,
-          createTime: new Date(u.createdAt).toLocaleString(),
-        }));
-        if (mapped.length > 0) {
-          setUsers(mapped);
-        }
-      })
-      .catch(() => {
-        // Keep local mock users when backend is unreachable.
-      });
-  }, []);
+    Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests()]);
+  }, [loadUsers, loadNotices, loadWorkflowRequests]);
+
+  const handleSoftRefresh = async () => {
+    if (isRefreshing) return;
+
+    setIsRefreshing(true);
+    try {
+      await Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests()]);
+    } catch {
+      // Keep current data when backend is unreachable.
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 250);
+    }
+  };
 
   const handleLogin = async (username: string, password: string) => {
     try {
@@ -4390,7 +4755,18 @@ export default function App() {
       <Sidebar activePage={activePage} setActivePage={setActivePage} />
 
       <main className="flex-1 flex flex-col">
-        <Header user={currentUser} onLogout={handleLogout} />
+        <Header
+          user={currentUser}
+          onLogout={handleLogout}
+          searchQuery={globalSearchQuery}
+          onSearchChange={setGlobalSearchQuery}
+          onNavigate={setActivePage}
+          onOpenNoticeCenter={() => setActivePage('sys-notice')}
+          onRefresh={handleSoftRefresh}
+          onGoHome={() => setActivePage('workbench')}
+          unreadNoticeCount={unreadNoticeCount}
+          isRefreshing={isRefreshing}
+        />
 
         <div className="flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
