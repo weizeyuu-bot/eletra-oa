@@ -190,6 +190,28 @@ const INITIAL_NOTICES: Notice[] = [
   { id: 3, title: '新员工入职培训指南', type: '通知', status: false, creator: 'admin', createTime: '2026-03-01 09:00:00', content: '新员工入职培训指南内容' },
 ];
 
+const DEFAULT_EXPENSE_CATEGORY_OPTIONS = [
+  '差旅费 (Viagens)',
+  '招待费 (Entretenimento)',
+  '办公费 (Escritório)',
+  '通讯费 (Comunicação)',
+  '其他 (Outros)',
+];
+
+const DEFAULT_BANK_OPTIONS = [
+  'Banco do Brasil',
+  'Itaú Unibanco',
+  'Bradesco',
+  'Caixa Econômica Federal',
+];
+
+const DEFAULT_PAYMENT_METHOD_OPTIONS = [
+  '银行转账 (Transferência)',
+  '支票 (Cheque)',
+  '现金 (Dinheiro)',
+  'PIX',
+];
+
 const INITIAL_WORKFLOW_REQUESTS: WorkflowRequest[] = [
   {
     id: 'TR20260327001',
@@ -2258,7 +2280,19 @@ const StampRequestForm = ({ onBack, title = '用印申请', onSubmitRequest }: {
   );
 };
 
-const ReimbursementRequestForm = ({ onBack, title = '报销申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
+const ReimbursementRequestForm = ({
+  onBack,
+  title = '报销申请',
+  onSubmitRequest,
+  expenseCategoryOptions,
+  bankOptions,
+}: {
+  onBack: () => void;
+  title?: string;
+  onSubmitRequest?: (title: string) => void;
+  expenseCategoryOptions: string[];
+  bankOptions: string[];
+}) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2316,11 +2350,9 @@ const ReimbursementRequestForm = ({ onBack, title = '报销申请', onSubmitRequ
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">报销类别 (Tipo de Despesa)</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
-                  <option>差旅费 (Viagens)</option>
-                  <option>招待费 (Entretenimento)</option>
-                  <option>办公费 (Escritório)</option>
-                  <option>通讯费 (Comunicação)</option>
-                  <option>其他 (Outros)</option>
+                  {expenseCategoryOptions.map((item) => (
+                    <option key={item}>{item}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -2356,7 +2388,11 @@ const ReimbursementRequestForm = ({ onBack, title = '报销申请', onSubmitRequ
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">银行名称 (Banco)</label>
-                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="例如: Banco do Brasil" />
+                <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
+                  {bankOptions.map((item) => (
+                    <option key={item}>{item}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">账号 (Número da Conta)</label>
@@ -2389,7 +2425,17 @@ const ReimbursementRequestForm = ({ onBack, title = '报销申请', onSubmitRequ
   );
 };
 
-const PaymentRequestForm = ({ onBack, title = '付款申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
+const PaymentRequestForm = ({
+  onBack,
+  title = '付款申请',
+  onSubmitRequest,
+  paymentMethodOptions,
+}: {
+  onBack: () => void;
+  title?: string;
+  onSubmitRequest?: (title: string) => void;
+  paymentMethodOptions: string[];
+}) => {
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2462,10 +2508,9 @@ const PaymentRequestForm = ({ onBack, title = '付款申请', onSubmitRequest }:
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">付款方式 (Método)</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
-                  <option>银行转账 (Transferência)</option>
-                  <option>支票 (Cheque)</option>
-                  <option>现金 (Dinheiro)</option>
-                  <option>PIX</option>
+                  {paymentMethodOptions.map((item) => (
+                    <option key={item}>{item}</option>
+                  ))}
                 </select>
               </div>
               <div className="md:col-span-3 space-y-1.5">
@@ -4564,6 +4609,9 @@ export default function App() {
   const [selectedNoticeForView, setSelectedNoticeForView] = useState<Notice | null>(null);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [expenseCategoryOptions, setExpenseCategoryOptions] = useState<string[]>(DEFAULT_EXPENSE_CATEGORY_OPTIONS);
+  const [bankOptions, setBankOptions] = useState<string[]>(DEFAULT_BANK_OPTIONS);
+  const [paymentMethodOptions, setPaymentMethodOptions] = useState<string[]>(DEFAULT_PAYMENT_METHOD_OPTIONS);
   const unreadNoticeCount = notices.filter((n) => n.status && !n.isRead).length;
 
   const loadUsers = useCallback(async () => {
@@ -4634,17 +4682,49 @@ export default function App() {
     }
   }, []);
 
+  const loadFinanceDictionaryOptions = useCallback(async () => {
+    const data = await systemConfigService.getDicts();
+    const expenseOptions = Array.from(
+      new Set(
+        data
+          .filter((item: any) => item.status && String(item.type).toLowerCase() === 'expense_category')
+          .map((item: any) => String(item.name || '').trim())
+          .filter(Boolean)
+      )
+    );
+    const bankDictOptions = Array.from(
+      new Set(
+        data
+          .filter((item: any) => item.status && String(item.type).toLowerCase() === 'bank_name')
+          .map((item: any) => String(item.name || '').trim())
+          .filter(Boolean)
+      )
+    );
+    const paymentDictOptions = Array.from(
+      new Set(
+        data
+          .filter((item: any) => item.status && String(item.type).toLowerCase() === 'payment_method')
+          .map((item: any) => String(item.name || '').trim())
+          .filter(Boolean)
+      )
+    );
+
+    setExpenseCategoryOptions(expenseOptions.length > 0 ? expenseOptions : DEFAULT_EXPENSE_CATEGORY_OPTIONS);
+    setBankOptions(bankDictOptions.length > 0 ? bankDictOptions : DEFAULT_BANK_OPTIONS);
+    setPaymentMethodOptions(paymentDictOptions.length > 0 ? paymentDictOptions : DEFAULT_PAYMENT_METHOD_OPTIONS);
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
-    Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests()]);
-  }, [isAuthenticated, loadUsers, loadNotices, loadWorkflowRequests]);
+    Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests(), loadFinanceDictionaryOptions()]);
+  }, [isAuthenticated, loadUsers, loadNotices, loadWorkflowRequests, loadFinanceDictionaryOptions]);
 
   const handleSoftRefresh = async () => {
     if (isRefreshing) return;
 
     setIsRefreshing(true);
     try {
-      await Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests()]);
+      await Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests(), loadFinanceDictionaryOptions()]);
     } catch {
       // Keep current data when backend is unreachable.
     } finally {
@@ -4826,8 +4906,8 @@ export default function App() {
                     case 'apps-hr-stamp': return <StampRequestForm {...props} title="用印申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-hr-travel': 
                     case 'travel-request': return <TravelRequestForm {...props} title="出差申请" currentUser={currentUser} onSubmitRequest={handleSubmitWorkflow} />;
-                    case 'apps-finance-reimbursement': return <ReimbursementRequestForm {...props} title="报销申请" onSubmitRequest={handleSubmitWorkflow} />;
-                    case 'apps-finance-payment': return <PaymentRequestForm {...props} title="付款申请" onSubmitRequest={handleSubmitWorkflow} />;
+                    case 'apps-finance-reimbursement': return <ReimbursementRequestForm {...props} title="报销申请" onSubmitRequest={handleSubmitWorkflow} expenseCategoryOptions={expenseCategoryOptions} bankOptions={bankOptions} />;
+                    case 'apps-finance-payment': return <PaymentRequestForm {...props} title="付款申请" onSubmitRequest={handleSubmitWorkflow} paymentMethodOptions={paymentMethodOptions} />;
                     case 'apps-finance-invoice': return <InvoiceRequestForm {...props} title="开票申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-supply-procurement': return <ProcurementRequestForm {...props} title="采购申请" onSubmitRequest={handleSubmitWorkflow} />;
                     case 'apps-supply-requisition': return <RequisitionRequestForm {...props} title="领用申请" onSubmitRequest={handleSubmitWorkflow} />;

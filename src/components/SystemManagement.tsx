@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Search, Plus, Edit2, Trash2, RotateCcw, Download, 
   User, Shield, Menu, Building2, Briefcase, Book, Bell,
@@ -559,15 +559,31 @@ export const UserManagement = ({
 // 2. 角色管理
 export const RoleManagement = ({ title }: PageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<SystemRole | null>(null);
+  const [permissionRole, setPermissionRole] = useState<SystemRole | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [roles, setRoles] = useState<SystemRole[]>([]);
+  const [menus, setMenus] = useState<Array<{ id: number; name: string; permission: string }>>([]);
+  const [selectedMenuIds, setSelectedMenuIds] = useState<number[]>([]);
+  const [isSavingPermissions, setIsSavingPermissions] = useState(false);
+  const [filters, setFilters] = useState({ name: '', key: '', status: '' as '' | '1' | '0' });
+  const [appliedFilters, setAppliedFilters] = useState({ name: '', key: '', status: '' as '' | '1' | '0' });
   const [formData, setFormData] = useState({
     name: '',
     key: '',
     sort: 0,
     status: true,
   });
+
+  const protectedRoleKeys = new Set(['sys:admin', 'super:admin']);
+
+  const roleTemplates = [
+    { name: '系统管理员', key: 'sys:admin' },
+    { name: '流程审批人', key: 'workflow:approver' },
+    { name: '财务专员', key: 'finance:operator' },
+    { name: '人事专员', key: 'hr:operator' },
+  ];
 
   const loadRoles = async () => {
     try {
@@ -579,9 +595,36 @@ export const RoleManagement = ({ title }: PageProps) => {
     }
   };
 
+  const loadMenus = async () => {
+    try {
+      const data = await systemConfigService.getMenus();
+      setMenus(data.map((m) => ({ id: m.id, name: m.name, permission: m.permission })));
+    } catch (error) {
+      console.error('加载菜单失败', error);
+    }
+  };
+
   useEffect(() => {
     loadRoles();
+    loadMenus();
   }, []);
+
+  const filteredRoles = useMemo(() => {
+    const byName = appliedFilters.name.trim().toLowerCase();
+    const byKey = appliedFilters.key.trim().toLowerCase();
+
+    return roles.filter((role) => {
+      const matchName = !byName || role.name.toLowerCase().includes(byName);
+      const matchKey = !byKey || role.key.toLowerCase().includes(byKey);
+      const matchStatus =
+        appliedFilters.status === ''
+          ? true
+          : appliedFilters.status === '1'
+          ? role.status
+          : !role.status;
+      return matchName && matchKey && matchStatus;
+    });
+  }, [roles, appliedFilters]);
 
   const handleAdd = () => {
     setEditingRole(null);
@@ -617,30 +660,53 @@ export const RoleManagement = ({ title }: PageProps) => {
 
   const handleBatchDelete = async () => {
     if (selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个角色吗？`)) {
-      await Promise.all(selectedIds.map((id) => systemRoleService.delete(id)));
+      const deletableIds = selectedIds.filter((id) => {
+        const role = roles.find((r) => r.id === id);
+        return role && !protectedRoleKeys.has(role.key);
+      });
+
+      if (deletableIds.length === 0) {
+        alert('选中角色均为内置角色，不允许删除');
+        return;
+      }
+
+      await Promise.all(deletableIds.map((id) => systemRoleService.delete(id)));
       await loadRoles();
       setSelectedIds([]);
     }
   };
 
   const handleConfirm = async () => {
-    if (!formData.name.trim() || !formData.key.trim()) {
+    const normalizedName = formData.name.trim();
+    const normalizedKey = formData.key.trim().toLowerCase();
+
+    if (!normalizedName || !normalizedKey) {
       alert('请填写角色名称和权限字符');
+      return;
+    }
+
+    if (normalizedName.length < 2 || normalizedName.length > 30) {
+      alert('角色名称长度需在 2-30 个字符之间');
+      return;
+    }
+
+    if (!/^[a-z][a-z0-9:_-]{2,49}$/.test(normalizedKey)) {
+      alert('权限字符格式无效，示例：sys:admin、workflow:approver');
       return;
     }
 
     try {
       if (editingRole) {
         await systemRoleService.update(editingRole.id, {
-          name: formData.name,
-          key: formData.key,
+          name: normalizedName,
+          key: normalizedKey,
           sort: formData.sort,
           status: formData.status,
         });
       } else {
         await systemRoleService.create({
-          name: formData.name,
-          key: formData.key,
+          name: normalizedName,
+          key: normalizedKey,
           sort: formData.sort,
           status: formData.status,
         });
@@ -654,6 +720,48 @@ export const RoleManagement = ({ title }: PageProps) => {
     }
   };
 
+  const handleSearch = () => {
+    setAppliedFilters({ ...filters, name: filters.name.trim(), key: filters.key.trim() });
+    setSelectedIds([]);
+  };
+
+  const handleResetFilters = () => {
+    const empty = { name: '', key: '', status: '' as '' | '1' | '0' };
+    setFilters(empty);
+    setAppliedFilters(empty);
+    setSelectedIds([]);
+  };
+
+  const handleOpenPermissions = async (role: SystemRole) => {
+    try {
+      const ids = await systemRoleService.getMenuIds(role.id);
+      setPermissionRole(role);
+      setSelectedMenuIds(ids);
+      setIsPermissionModalOpen(true);
+    } catch (error) {
+      console.error('加载角色菜单权限失败', error);
+      alert('加载菜单权限失败，请稍后重试');
+    }
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permissionRole) return;
+
+    setIsSavingPermissions(true);
+    try {
+      await systemRoleService.updateMenuIds(permissionRole.id, selectedMenuIds);
+      alert('菜单权限保存成功');
+      setIsPermissionModalOpen(false);
+      setPermissionRole(null);
+      setSelectedMenuIds([]);
+    } catch (error) {
+      console.error('保存菜单权限失败', error);
+      alert('保存菜单权限失败，请稍后重试');
+    } finally {
+      setIsSavingPermissions(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
       <div className="mb-8">
@@ -661,24 +769,54 @@ export const RoleManagement = ({ title }: PageProps) => {
         <p className="text-gray-500 mt-1">管理系统角色权限、菜单分配及数据范围</p>
       </div>
 
-      <SearchBar>
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-6 flex flex-wrap gap-4 items-end">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">角色名称</label>
-          <input type="text" placeholder="请输入角色名称" className="w-48 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          <input
+            type="text"
+            value={filters.name}
+            onChange={(e) => setFilters((prev) => ({ ...prev, name: e.target.value }))}
+            placeholder="请输入角色名称"
+            className="w-48 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">权限字符</label>
-          <input type="text" placeholder="请输入权限字符" className="w-48 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          <input
+            type="text"
+            value={filters.key}
+            onChange={(e) => setFilters((prev) => ({ ...prev, key: e.target.value }))}
+            placeholder="请输入权限字符"
+            className="w-48 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">状态</label>
-          <select className="w-40 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value as '' | '1' | '0' }))}
+            className="w-40 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          >
             <option value="">所有</option>
             <option value="1">正常</option>
             <option value="0">停用</option>
           </select>
         </div>
-      </SearchBar>
+        <div className="flex gap-2 ml-auto">
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all flex items-center gap-2"
+          >
+            <Search className="w-4 h-4" /> 查询
+          </button>
+          <button
+            onClick={handleResetFilters}
+            className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg font-medium hover:bg-gray-200 transition-all flex items-center gap-2"
+          >
+            <RotateCcw className="w-4 h-4" /> 重置
+          </button>
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-gray-50">
@@ -698,10 +836,10 @@ export const RoleManagement = ({ title }: PageProps) => {
                   <input 
                     type="checkbox" 
                     className="rounded border-gray-300" 
-                    checked={selectedIds.length === roles.length && roles.length > 0}
+                    checked={selectedIds.length === filteredRoles.length && filteredRoles.length > 0}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedIds(roles.map(r => r.id));
+                        setSelectedIds(filteredRoles.map(r => r.id));
                       } else {
                         setSelectedIds([]);
                       }
@@ -717,7 +855,7 @@ export const RoleManagement = ({ title }: PageProps) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {roles.map((role) => (
+              {filteredRoles.map((role) => (
                 <tr key={role.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-4">
                     <input 
@@ -733,7 +871,16 @@ export const RoleManagement = ({ title }: PageProps) => {
                       }}
                     />
                   </td>
-                  <td className="px-6 py-4 font-medium text-gray-900">{role.name}</td>
+                  <td className="px-6 py-4 font-medium text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <span>{role.name}</span>
+                      {protectedRoleKeys.has(role.key) && (
+                        <span className="px-2 py-0.5 text-[11px] rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+                          内置
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-gray-600">{role.key}</td>
                   <td className="px-6 py-4 text-gray-600">{role.sort}</td>
                   <td className="px-6 py-4"><StatusBadge status={role.status} /></td>
@@ -748,17 +895,32 @@ export const RoleManagement = ({ title }: PageProps) => {
                       </button>
                       <button 
                         onClick={() => handleDelete(role.id)}
-                        className="text-red-600 hover:text-red-700 font-medium text-sm flex items-center gap-1"
+                        disabled={protectedRoleKeys.has(role.key)}
+                        className={`font-medium text-sm flex items-center gap-1 ${
+                          protectedRoleKeys.has(role.key)
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-red-600 hover:text-red-700'
+                        }`}
                       >
                         <Trash2 className="w-3.5 h-3.5" /> 删除
                       </button>
-                      <button className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenPermissions(role)}
+                        className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center gap-1"
+                      >
                         <Lock className="w-3.5 h-3.5" /> 菜单权限
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
+              {filteredRoles.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-400">
+                    未找到符合条件的角色
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -776,18 +938,127 @@ export const RoleManagement = ({ title }: PageProps) => {
                 <label className="text-sm font-semibold text-gray-700">角色名称</label>
                 <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入角色名称" />
               </div>
+              {!editingRole && (
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">快捷模板</label>
+                  <div className="flex flex-wrap gap-2">
+                    {roleTemplates.map((tpl) => (
+                      <button
+                        key={tpl.key}
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, name: tpl.name, key: tpl.key }))}
+                        className="px-3 py-1.5 text-xs bg-blue-50 text-blue-600 border border-blue-100 rounded-lg hover:bg-blue-100"
+                      >
+                        {tpl.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">权限字符</label>
-                <input type="text" value={formData.key} onChange={(e) => setFormData({ ...formData, key: e.target.value })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入权限字符" />
+                <input
+                  type="text"
+                  value={formData.key}
+                  disabled={!!editingRole && protectedRoleKeys.has(editingRole.key)}
+                  onChange={(e) => setFormData({ ...formData, key: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:text-gray-400"
+                  placeholder="请输入权限字符，例如：sys:admin"
+                />
+                <p className="text-xs text-gray-400">建议格式：模块:动作，如 sys:admin、workflow:approver</p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">显示顺序</label>
                 <input type="number" value={formData.sort} onChange={(e) => setFormData({ ...formData, sort: Number(e.target.value) || 0 })} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入显示顺序" />
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">状态</label>
+                <select
+                  value={formData.status ? '1' : '0'}
+                  disabled={!!editingRole && protectedRoleKeys.has(editingRole.key)}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value === '1' })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                  <option value="1">正常</option>
+                  <option value="0">停用</option>
+                </select>
+              </div>
             </div>
             <div className="px-8 py-6 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl font-semibold hover:bg-gray-50">取消</button>
               <button onClick={handleConfirm} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100">确定</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {isPermissionModalOpen && permissionRole && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-gray-900">菜单权限 - {permissionRole.name}</h3>
+              <button
+                onClick={() => {
+                  setIsPermissionModalOpen(false);
+                  setPermissionRole(null);
+                  setSelectedMenuIds([]);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full text-gray-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {menus.length === 0 ? (
+                <p className="text-sm text-gray-400">暂无可分配菜单，请先在菜单管理中创建菜单。</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {menus.map((menu) => (
+                    <label key={menu.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedMenuIds.includes(menu.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedMenuIds((prev) => [...new Set([...prev, menu.id])]);
+                          } else {
+                            setSelectedMenuIds((prev) => prev.filter((id) => id !== menu.id));
+                          }
+                        }}
+                        className="mt-1 rounded border-gray-300"
+                      />
+                      <span className="text-sm">
+                        <span className="block text-gray-800 font-medium">{menu.name}</span>
+                        <span className="block text-gray-400 text-xs">{menu.permission}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex justify-between items-center">
+              <span className="text-xs text-gray-500">已选择 {selectedMenuIds.length} 项菜单权限</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setIsPermissionModalOpen(false);
+                    setPermissionRole(null);
+                    setSelectedMenuIds([]);
+                  }}
+                  className="px-5 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg font-semibold hover:bg-gray-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSavePermissions}
+                  disabled={isSavingPermissions}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {isSavingPermissions ? '保存中...' : '保存权限'}
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

@@ -44,4 +44,14 @@ export const systemRoleService = {
     const response = await api.delete(`/system/roles/${id}`);
     return response.data;
   },
+
+  async getMenuIds(id: number): Promise<number[]> {
+    const response = await api.get(`/system/roles/${id}/menus`);
+    return response.data;
+  },
+
+  async updateMenuIds(id: number, menuIds: number[]): Promise<{ roleId: number; menuIds: number[] }> {
+    const response = await api.put(`/system/roles/${id}/menus`, { menuIds });
+    return response.data;
+  },
 };
