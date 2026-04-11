@@ -66,6 +66,7 @@ import {
   NoticeManagement 
 } from './components/SystemManagement';
 import { authService } from './services/auth';
+import api from './services/api';
 import { userService } from './services/user';
 import { workflowService } from './services/workflow';
 import { systemConfigService } from './services/systemConfig';
@@ -4588,9 +4589,9 @@ const NoticeDetailModal = ({ notice, onClose }: { notice: Notice; onClose: () =>
 };
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return Boolean(localStorage.getItem('access_token'));
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(() => {
+    // null = 未确定（正在验证），true = 已验证通过，false = 未认证
+    return null;
   });
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [users, setUsers] = useState([
@@ -4719,6 +4720,38 @@ export default function App() {
     Promise.allSettled([loadUsers(), loadNotices(), loadWorkflowRequests(), loadFinanceDictionaryOptions()]);
   }, [isAuthenticated, loadUsers, loadNotices, loadWorkflowRequests, loadFinanceDictionaryOptions]);
 
+  // 页面首次加载：如果存在 access_token，则校验它；否则直接进入未登录状态
+  useEffect(() => {
+    const verify = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          return;
+        }
+
+        const res = await api.get('/auth/me');
+        const u = res.data;
+        setCurrentUser({
+          id: u.id,
+          username: u.username || u.email || '',
+          nickname: u.username || u.email || '',
+          dept: '',
+          phone: '',
+          status: true,
+        });
+        setIsAuthenticated(true);
+      } catch (err) {
+        localStorage.removeItem('access_token');
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+    };
+
+    verify();
+  }, []);
+
   const handleSoftRefresh = async () => {
     if (isRefreshing) return;
 
@@ -4762,6 +4795,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    authService.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
     setActivePage('workbench');
@@ -4829,6 +4863,14 @@ export default function App() {
   const handleRejectWorkflow = (id: string) => {
     setWorkflowRequests(prev => prev.map(item => item.id === id ? { ...item, status: '已驳回', currentNode: '申请人修改', approver: currentUser?.nickname || currentUser?.username || '管理员' } : item));
   };
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-gray-500">验证中...</div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;

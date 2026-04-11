@@ -1718,6 +1718,7 @@ export const DictManagement = ({ title }: PageProps) => {
   const [editingDict, setEditingDict] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [dicts, setDicts] = useState<any[]>([]);
+  const [dictForm, setDictForm] = useState({ name: '', type: '', remark: '', status: true });
 
   const loadDicts = async () => {
     try {
@@ -1732,44 +1733,50 @@ export const DictManagement = ({ title }: PageProps) => {
     loadDicts();
   }, []);
 
-  const handleAdd = async () => {
-    const name = window.prompt('请输入字典名称');
-    if (!name) return;
-    const type = window.prompt('请输入字典类型', 'sys_dict_type') || 'sys_dict_type';
-    const remark = window.prompt('请输入备注', '') || '';
+  const uniqueTypes = useMemo(() => Array.from(new Set(dicts.map(d => d.type))).filter(Boolean), [dicts]);
 
-    try {
-      await systemConfigService.createDict({
-        name,
-        type,
-        remark,
-        status: true,
-      });
-      await loadDicts();
-    } catch (error) {
-      console.error('新增字典失败:', error);
-      alert('新增字典失败');
-    }
+  const handleAdd = async () => {
+    setEditingDict(null);
+    setDictForm({ name: '', type: '', remark: '', status: true });
+    setIsModalOpen(true);
   };
 
   const handleEdit = async (dict: any) => {
-    const name = window.prompt('请输入字典名称', dict.name);
-    if (!name) return;
-    const type = window.prompt('请输入字典类型', dict.type) || dict.type;
-    const remark = window.prompt('请输入备注', dict.remark || '') || '';
-
-    try {
-      await systemConfigService.updateDict(dict.id, {
-        name,
-        type,
-        remark,
-      });
-      await loadDicts();
-    } catch (error) {
-      console.error('修改字典失败:', error);
-      alert('修改字典失败');
-    }
+    setEditingDict(dict);
+    setDictForm({ name: dict.name || '', type: dict.type || '', remark: dict.remark || '', status: dict.status !== undefined ? dict.status : true });
+    setIsModalOpen(true);
   };
+
+  const TYPE_ALIASES: Record<string, string> = {
+    expense_category: '报销类别',
+    payment_method: '付款方式',
+    cost_center: '成本中心',
+  };
+
+  const humanizeType = (t: string) => {
+    if (!t) return '';
+    return t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  // 下拉相关状态（用于模态内的字典类型选择）
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+  const [typeSearch, setTypeSearch] = useState('');
+  const typeWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const filteredTypes = useMemo(() => {
+    const q = typeSearch.trim().toLowerCase();
+    return uniqueTypes.filter(t => !q || t.toLowerCase().includes(q));
+  }, [uniqueTypes, typeSearch]);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (typeWrapperRef.current && !typeWrapperRef.current.contains(e.target as Node)) {
+        setTypeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, []);
 
   const handleHeaderEdit = () => {
     if (selectedIds.length === 1) {
@@ -1802,6 +1809,31 @@ export const DictManagement = ({ title }: PageProps) => {
     }
   };
 
+  const handleModalConfirm = async () => {
+    try {
+      if (editingDict) {
+        await systemConfigService.updateDict(editingDict.id, {
+          name: dictForm.name,
+          type: dictForm.type,
+          remark: dictForm.remark,
+          status: dictForm.status,
+        });
+      } else {
+        await systemConfigService.createDict({
+          name: dictForm.name,
+          type: dictForm.type || 'sys_dict_type',
+          remark: dictForm.remark,
+          status: dictForm.status,
+        });
+      }
+      setIsModalOpen(false);
+      await loadDicts();
+    } catch (error) {
+      console.error('保存字典失败:', error);
+      alert('保存字典失败');
+    }
+  };
+
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
       <div className="mb-8">
@@ -1816,7 +1848,10 @@ export const DictManagement = ({ title }: PageProps) => {
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">字典类型</label>
-          <input type="text" placeholder="请输入字典类型" className="w-48 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          <input list="dict-types-filter" type="text" placeholder="请选择或输入字典类型" className="w-48 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          <datalist id="dict-types-filter">
+            {uniqueTypes.map(t => <option key={t} value={t} />)}
+          </datalist>
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700">状态</label>
@@ -1882,7 +1917,10 @@ export const DictManagement = ({ title }: PageProps) => {
                     />
                   </td>
                   <td className="px-6 py-4 font-medium text-gray-900">{dict.name}</td>
-                  <td className="px-6 py-4 text-gray-600 text-sm font-mono">{dict.type}</td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900">{TYPE_ALIASES[dict.type] || humanizeType(dict.type)}</div>
+                    <div className="text-xs text-gray-500 font-mono">{dict.type}</div>
+                  </td>
                   <td className="px-6 py-4"><StatusBadge status={dict.status} /></td>
                   <td className="px-6 py-4 text-gray-600 text-sm">{dict.remark}</td>
                   <td className="px-6 py-4 text-gray-500 text-sm">{dict.createTime}</td>
@@ -1934,16 +1972,66 @@ export const DictManagement = ({ title }: PageProps) => {
             <div className="p-8 space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-700">字典名称</label>
-                <input type="text" defaultValue={editingDict?.name} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入字典名称" />
+                <input type="text" value={dictForm.name} onChange={(e) => setDictForm({...dictForm, name: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入字典名称" />
+              </div>
+              <div className="space-y-2" ref={typeWrapperRef}>
+                <label className="text-sm font-semibold text-gray-700">字典类型</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={typeSearch || dictForm.type}
+                    onChange={(e) => { setTypeSearch(e.target.value); setTypeDropdownOpen(true); }}
+                    onFocus={() => { setTypeDropdownOpen(true); setTypeSearch(''); }}
+                    placeholder="请选择或输入字典类型"
+                    className="w-full px-4 py-2.5 pr-10 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <button type="button" onClick={() => { setTypeDropdownOpen(v => !v); setTypeSearch(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="pointer-events-none">
+                      <path d="M6 8L10 12L14 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+
+                  {typeDropdownOpen && (
+                    <div className="absolute z-50 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-lg max-h-56 overflow-auto">
+                      <div className="px-3 py-2 border-b border-gray-50">
+                        <input value={typeSearch} onChange={(e) => setTypeSearch(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg outline-none" placeholder="过滤类型..." />
+                      </div>
+                      <ul>
+                        {filteredTypes.length === 0 && (
+                          <li className="px-4 py-2 text-sm text-gray-500">无匹配类型，输入新类型并保存</li>
+                        )}
+                        {filteredTypes.map((t) => (
+                          <li key={t} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex flex-col" onClick={() => { setDictForm({...dictForm, type: t}); setTypeDropdownOpen(false); setTypeSearch(''); }}>
+                            <div className="text-sm text-gray-900">{TYPE_ALIASES[t] || humanizeType(t)}</div>
+                            <div className="text-xs text-gray-500 font-mono">{t}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">字典类型</label>
-                <input type="text" defaultValue={editingDict?.type} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入字典类型" />
+                <label className="text-sm font-semibold text-gray-700">备注</label>
+                <input type="text" value={dictForm.remark} onChange={(e) => setDictForm({...dictForm, remark: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="请输入备注" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">状态</label>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input type="radio" checked={dictForm.status} onChange={() => setDictForm({...dictForm, status: true})} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
+                    <span className="text-sm font-medium text-gray-600">正常</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input type="radio" checked={!dictForm.status} onChange={() => setDictForm({...dictForm, status: false})} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
+                    <span className="text-sm font-medium text-gray-600">停用</span>
+                  </label>
+                </div>
               </div>
             </div>
             <div className="px-8 py-6 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl font-semibold hover:bg-gray-50">取消</button>
-              <button onClick={() => { alert('保存成功'); setIsModalOpen(false); }} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100">确定</button>
+              <button onClick={handleModalConfirm} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100">确定</button>
             </div>
           </motion.div>
         </div>
@@ -1958,13 +2046,15 @@ const NoticeModal = ({
   onClose, 
   onConfirm,
   mode, 
-  initialData 
+  initialData,
+  isSaving
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   onConfirm: (data: any) => void;
   mode: 'add' | 'edit';
   initialData?: any;
+  isSaving?: boolean;
 }) => {
   const [title, setTitle] = useState(initialData?.title || '');
   const [type, setType] = useState(initialData?.type || '通知');
@@ -2245,14 +2335,22 @@ const NoticeModal = ({
         <div className="px-8 py-6 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3">
           <button 
             onClick={onClose}
+            disabled={isSaving}
             className="px-6 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl font-semibold hover:bg-gray-50 transition-all"
           >
             取消
           </button>
           <button 
             onClick={handleConfirm}
-            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+            disabled={isSaving}
+            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
           >
+            {isSaving ? (
+              <svg className="animate-spin w-4 h-4 text-white" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            ) : null}
             确定
           </button>
         </div>
@@ -2266,6 +2364,7 @@ export const NoticeManagement = ({ title, notices, setNotices, onMarkAsRead, onO
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedNotice, setSelectedNotice] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [savingNotice, setSavingNotice] = useState(false);
 
   const loadNotices = async () => {
     try {
@@ -2298,6 +2397,7 @@ export const NoticeManagement = ({ title, notices, setNotices, onMarkAsRead, onO
   };
 
   const handleConfirm = async (data: any) => {
+    setSavingNotice(true);
     try {
       if (modalMode === 'add') {
         await systemConfigService.createNotice({
@@ -2311,9 +2411,18 @@ export const NoticeManagement = ({ title, notices, setNotices, onMarkAsRead, onO
       }
       setIsModalOpen(false);
       await loadNotices();
-    } catch (error) {
+    } catch (error: any) {
       console.error('保存公告失败:', error);
-      alert('保存公告失败');
+      const resp = error?.response?.data;
+      const msg = resp?.message || error?.message || '保存公告失败';
+      // 显示后端返回的完整错误对象，方便调试
+      if (resp) {
+        alert(`保存公告失败: ${msg}\n\n${JSON.stringify(resp, null, 2)}`);
+      } else {
+        alert(msg);
+      }
+    } finally {
+      setSavingNotice(false);
     }
   };
 
@@ -2512,6 +2621,7 @@ export const NoticeManagement = ({ title, notices, setNotices, onMarkAsRead, onO
         onConfirm={handleConfirm}
         mode={modalMode}
         initialData={selectedNotice}
+        isSaving={savingNotice}
       />
     </div>
   );
