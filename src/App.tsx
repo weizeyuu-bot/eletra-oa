@@ -59,6 +59,7 @@ import {
   Book,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useI18n } from './i18n/index';
 import { Login } from './components/Login';
 import { 
   UserManagement, RoleManagement, MenuManagement, 
@@ -424,6 +425,7 @@ const renderHighlightedText = (text: string, query: string) => {
 // --- Components ---
 
 const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePage: (p: Page) => void }) => {
+  const { t, locale, setLocale } = useI18n();
   const [isAppsExpanded, setIsAppsExpanded] = useState(true);
   const [isReportsExpanded, setIsReportsExpanded] = useState(false);
   const [isSysExpanded, setIsSysExpanded] = useState(false);
@@ -437,7 +439,7 @@ const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePag
   };
 
   const menuItems = [
-    { id: 'workbench', icon: LayoutDashboard, label: '门户首页' },
+    { id: 'workbench', icon: LayoutDashboard, label: t('workbench') },
     { id: 'approvals', icon: ShieldCheck, label: '流程待办' },
     { 
       id: 'apps', 
@@ -512,15 +514,15 @@ const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePag
     { 
       id: 'sys', 
       icon: Settings2, 
-      label: '系统管理',
+      label: t('sysMgmt'),
       subItems: [
-        { id: 'sys-user', label: '用户管理' },
-        { id: 'sys-role', label: '角色管理', icon: ShieldCheck },
-        { id: 'sys-menu', label: '菜单管理', icon: Grid },
-        { id: 'sys-dept', label: '部门管理', icon: Building2 },
-        { id: 'sys-post', label: '岗位管理', icon: Briefcase },
-        { id: 'sys-dict', label: '字典管理', icon: Library },
-        { id: 'sys-notice', label: '通知公告管理', icon: Bell },
+        { id: 'sys-user', label: 'User Management' },
+          { id: 'sys-role', label: 'Role Management', icon: ShieldCheck },
+          { id: 'sys-menu', label: 'Menu Management', icon: Grid },
+          { id: 'sys-dept', label: 'Department Management', icon: Building2 },
+          { id: 'sys-post', label: 'Post Management', icon: Briefcase },
+          { id: 'sys-dict', label: 'Dictionary Management', icon: Library },
+          { id: 'sys-notice', label: 'Notice Management', icon: Bell },
       ]
     },
     { 
@@ -643,7 +645,7 @@ const Sidebar = ({ activePage, setActivePage }: { activePage: Page; setActivePag
       <div className="p-4 border-t border-gray-50 space-y-1">
         <button className="w-full flex items-center gap-3 px-4 py-2 text-gray-400 hover:bg-gray-50 rounded-lg text-sm">
           <Library className="w-4 h-4" />
-          帮助中心
+          {t('helpCenter')}
         </button>
       </div>
     </aside>
@@ -739,7 +741,7 @@ const Header = ({
 
   return (
     <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-10">
-      <div className="flex items-center gap-4 flex-1 max-w-xl">
+          <div className="flex items-center gap-4 flex-1 max-w-xl">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -838,8 +840,8 @@ const Header = ({
           </button>
           <button
             type="button"
-            title="刷新页面"
-            aria-label="刷新页面"
+            title={t('refresh')}
+            aria-label={t('refresh')}
             onClick={onRefresh}
             disabled={isRefreshing}
           >
@@ -854,13 +856,17 @@ const Header = ({
             <Home className="w-5 h-5 cursor-pointer hover:text-gray-600" />
           </button>
         </div>
-        <div className="flex items-center gap-2 pl-4 border-l border-gray-100">
+          <div className="flex items-center gap-2 pl-4 border-l border-gray-100">
           <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-medium text-sm">
             {user?.nickname?.[0] || '王'}
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-medium text-gray-700">{user?.nickname || '王严严'}</span>
-            <button onClick={onLogout} className="text-[10px] text-gray-400 hover:text-red-500 text-left transition-colors">退出登录</button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => { setLocale && setLocale('zh'); }} className={`text-[10px] ${locale === 'zh' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>中</button>
+              <button onClick={() => { setLocale && setLocale('en'); }} className={`text-[10px] ${locale === 'en' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>EN</button>
+              <button onClick={onLogout} className="text-[10px] text-gray-400 hover:text-red-500 text-left transition-colors">{t('logout')}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -932,7 +938,7 @@ const Workbench = ({
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">下午好，<span className="text-blue-600">{currentUser?.nickname || '王严严'}</span></h1>
+        <h1 className="text-2xl font-bold text-gray-800">{t('welcome')}，<span className="text-blue-600">{currentUser?.nickname || t('admin')}</span></h1>
         <div className="text-sm text-gray-400">2026年3月26日 星期四</div>
       </div>
 
@@ -944,7 +950,7 @@ const Workbench = ({
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
                 <Bell className="w-5 h-5 text-orange-500" />
-                <h3 className="font-bold text-gray-800">新闻公告</h3>
+                <h3 className="font-bold text-gray-800">{t('notices')}</h3>
               </div>
               <button 
                 onClick={() => setActivePage('sys-notice')}
@@ -4561,9 +4567,9 @@ const NoticeDetailModal = ({ notice, onClose }: { notice: Notice; onClose: () =>
                 <User className="w-4 h-4" />
                 <span>发布人：{notice.creator}</span>
               </div>
-              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4" />
-                <span>发布时间：{notice.createTime}</span>
+                <span>{`Published: ${notice.createTime}`}</span>
               </div>
             </div>
           </div>
