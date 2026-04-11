@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Lock, User, ChevronRight } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 interface LoginProps {
   onLogin: (username: string, password: string) => Promise<void> | void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const { t } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [autoLogin, setAutoLogin] = useState(false);
@@ -38,15 +40,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="w-full md:w-2/5 p-12 flex flex-col justify-center">
           <div className="mb-12">
             <h2 className="text-xl font-bold text-[#1a3a5a] italic tracking-wider uppercase leading-tight">
-              PORTAL DE ACESSO<br />
-              DA TI ELETRA
+              {t('portalTitleLine1')}<br />
+              {t('portalTitleLine2')}
             </h2>
             <div className="h-0.5 w-12 bg-gray-100 mt-4"></div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">用户名</label>
+              <label className="text-sm font-medium text-gray-700">{t('username')}</label>
               <div className="relative">
                 <input
                   type="text"
@@ -62,7 +64,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <div className="flex justify-between items-center">
                 <label className="text-sm font-medium text-gray-700">密码</label>
                 <button type="button" className="text-xs text-gray-500 hover:text-blue-600 transition-colors italic">
-                  忘记密码?
+                  {t('forgotPassword')}
                 </button>
               </div>
               <div className="relative">
@@ -98,7 +100,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     <polyline points="20 6 9 17 4 12"></polyline>
                   </svg>
                 </div>
-                <span className="text-sm text-gray-600 font-medium">自动登录</span>
+                <span className="text-sm text-gray-600 font-medium">{t('autoLogin')}</span>
               </label>
             </div>
 
@@ -106,7 +108,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               type="submit"
               className="w-full py-3 bg-[#555] text-white font-medium rounded hover:bg-[#444] transition-all shadow-lg active:scale-[0.98]"
             >
-              登录
+              {t('login')}
             </button>
           </form>
 

@@ -20,6 +20,13 @@ const resources: Record<string, Record<string, string>> = {
     submit: 'Submit',
     saveDraft: 'Save Draft',
     submitAndContinue: 'Submit & Continue',
+    username: 'Username',
+    password: 'Password',
+    forgotPassword: 'Forgot password?',
+    autoLogin: 'Keep me logged in',
+    login: 'Login',
+    portalTitleLine1: 'PORTAL ACCESS',
+    portalTitleLine2: 'ELETRA IT',
   },
   zh: {
     portal: '门户首页',
@@ -40,6 +47,13 @@ const resources: Record<string, Record<string, string>> = {
     submit: '提交',
     saveDraft: '存草稿',
     submitAndContinue: '提交并继续创建',
+    username: '用户名',
+    password: '密码',
+    forgotPassword: '忘记密码?',
+    autoLogin: '自动登录',
+    login: '登录',
+    portalTitleLine1: 'PORTAL DE ACESSO',
+    portalTitleLine2: 'DA TI ELETRA',
   },
 };
 
