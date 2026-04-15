@@ -62,7 +62,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-gray-700">密码</label>
+                  <label className="text-sm font-medium text-gray-700">{t('password')}</label>
                 <button type="button" className="text-xs text-gray-500 hover:text-blue-600 transition-colors italic">
                   {t('forgotPassword')}
                 </button>

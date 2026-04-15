@@ -1,19 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { expenseService } from '../services';
 import { Expense } from '../types';
+import { useI18n } from '../i18n';
+
+const EXPENSE_CATEGORY_MEALS = '\u996d\u8d39';
+const EXPENSE_CATEGORY_TRANSPORT = '\u4ea4\u901a';
+const EXPENSE_CATEGORY_ACCOMMODATION = '\u4f4f\u5bbf';
+const EXPENSE_CATEGORY_OTHER = '\u5176\u4ed6';
 
 export const ExpenseDemo: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
+
   const [newExpense, setNewExpense] = useState({
     title: '',
     amount: 0,
-    category: '饭费',
+    category: EXPENSE_CATEGORY_MEALS,
     description: '',
   });
 
-  // 获取费用列表
+  // Load expense list
   const loadExpenses = async () => {
     try {
       setLoading(true);
@@ -21,14 +29,14 @@ export const ExpenseDemo: React.FC = () => {
       setExpenses(data);
       setError(null);
     } catch (err) {
-      setError('获取费用列表失败');
+      setError(t('expenseFetchFailed'));
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // 创建费用
+  // Create expense
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -38,22 +46,22 @@ export const ExpenseDemo: React.FC = () => {
         category: newExpense.category,
         description: newExpense.description,
       });
-      setNewExpense({ title: '', amount: 0, category: '饭费', description: '' });
-      loadExpenses(); // 刷新列表
+      setNewExpense({ title: '', amount: 0, category: EXPENSE_CATEGORY_MEALS, description: '' });
+      loadExpenses(); // Refresh list
     } catch (err) {
-      setError('创建费用失败');
+      setError(t('expenseCreateFailed'));
       console.error(err);
     }
   };
 
-  // 删除费用
+  // Delete expense
   const handleDeleteExpense = async (id: string) => {
-    if (!window.confirm('确定删除吗？')) return;
+    if (!window.confirm(t('expenseDeleteConfirm'))) return;
     try {
       await expenseService.delete(id);
       loadExpenses();
     } catch (err) {
-      setError('删除费用失败');
+      setError(t('expenseDeleteFailed'));
       console.error(err);
     }
   };
@@ -64,17 +72,17 @@ export const ExpenseDemo: React.FC = () => {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
-      <h2>💰 费用管理演示</h2>
+      <h2>{t('expenseHeader')}</h2>
 
       {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
 
-      {/* 创建费用表单 */}
+      {/* Create expense form */}
       <div style={{ background: '#f5f5f5', padding: '15px', marginBottom: '20px', borderRadius: '8px' }}>
-        <h3>新建费用</h3>
+        <h3>{t('expenseNew')}</h3>
         <form onSubmit={handleCreateExpense} style={{ display: 'grid', gap: '10px' }}>
           <input
             type="text"
-            placeholder="费用标题"
+            placeholder={t('expenseTitlePlaceholder')}
             value={newExpense.title}
             onChange={(e) => setNewExpense({ ...newExpense, title: e.target.value })}
             required
@@ -82,7 +90,7 @@ export const ExpenseDemo: React.FC = () => {
           />
           <input
             type="number"
-            placeholder="金额"
+            placeholder={t('expenseAmountPlaceholder')}
             value={newExpense.amount}
             onChange={(e) => setNewExpense({ ...newExpense, amount: parseFloat(e.target.value) })}
             required
@@ -94,13 +102,13 @@ export const ExpenseDemo: React.FC = () => {
             onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
             style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
           >
-            <option value="饭费">饭费</option>
-            <option value="交通">交通</option>
-            <option value="住宿">住宿</option>
-            <option value="其他">其他</option>
+            <option value={EXPENSE_CATEGORY_MEALS}>{t('expenseCategoryMeals')}</option>
+            <option value={EXPENSE_CATEGORY_TRANSPORT}>{t('expenseCategoryTransport')}</option>
+            <option value={EXPENSE_CATEGORY_ACCOMMODATION}>{t('expenseCategoryAccommodation')}</option>
+            <option value={EXPENSE_CATEGORY_OTHER}>{t('expenseCategoryOther')}</option>
           </select>
           <textarea
-            placeholder="описание（可选）"
+            placeholder={t('expenseDescriptionPlaceholder')}
             value={newExpense.description}
             onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
             style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '60px' }}
@@ -118,18 +126,18 @@ export const ExpenseDemo: React.FC = () => {
               opacity: loading ? 0.6 : 1,
             }}
           >
-            {loading ? '提交中...' : '提交费用'}
+            {loading ? t('expenseSubmitting') : t('expenseSubmit')}
           </button>
         </form>
       </div>
 
-      {/* 费用列表 */}
+      {/* Expense list */}
       <div>
-        <h3>费用列表 ({expenses.length})</h3>
+        <h3>{t('expenseTableTitle')} ({expenses.length})</h3>
         {loading ? (
-          <p>加载中...</p>
+          <p>{t('expenseLoading')}</p>
         ) : expenses.length === 0 ? (
-          <p>暂无费用记录</p>
+          <p>{t('expenseNoRecords')}</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table
@@ -141,12 +149,12 @@ export const ExpenseDemo: React.FC = () => {
             >
               <thead>
                 <tr style={{ background: '#f5f5f5' }}>
-                  <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>标题</th>
-                  <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'right' }}>金额</th>
-                  <th style={{ padding: '10px', border: '1px solid #ddd' }}>分类</th>
-                  <th style={{ padding: '10px', border: '1px solid #ddd' }}>状态</th>
-                  <th style={{ padding: '10px', border: '1px solid #ddd' }}>创建时间</th>
-                  <th style={{ padding: '10px', border: '1px solid #ddd' }}>操作</th>
+                  <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>{t('expenseTableTitle')}</th>
+                  <th style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'right' }}>{t('expenseTableAmount')}</th>
+                  <th style={{ padding: '10px', border: '1px solid #ddd' }}>{t('expenseTableCategory')}</th>
+                  <th style={{ padding: '10px', border: '1px solid #ddd' }}>{t('expenseTableStatus')}</th>
+                  <th style={{ padding: '10px', border: '1px solid #ddd' }}>{t('expenseTableCreatedAt')}</th>
+                  <th style={{ padding: '10px', border: '1px solid #ddd' }}>{t('expenseTableActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -196,7 +204,7 @@ export const ExpenseDemo: React.FC = () => {
                           fontSize: '12px',
                         }}
                       >
-                        删除
+                        {t('expenseDelete')}
                       </button>
                     </td>
                   </tr>

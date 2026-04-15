@@ -1,4 +1,4 @@
-// 用户相关类型
+// User-related types
 export interface User {
   id: string | number;
   email: string;
@@ -13,7 +13,7 @@ export interface User {
   createdAt: string;
 }
 
-// 认证相关类型
+// Auth-related types
 export interface RegisterRequest {
   email: string;
   username: string;
@@ -33,7 +33,7 @@ export interface AuthResponse {
   user: Omit<User, 'status'>;
 }
 
-// 费用相关类型
+// Expense-related types
 export interface Expense {
   id: string;
   title: string;
@@ -66,7 +66,7 @@ export interface UpdateExpenseRequest {
   status?: Expense['status'];
 }
 
-// 工作流相关类型
+// Workflow-related types
 export interface Workflow {
   id: string;
   title: string;
@@ -99,7 +99,7 @@ export interface CreateWorkflowRequest {
   }>;
 }
 
-// 审批相关类型
+// Approval-related types
 export interface Approval {
   id: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';

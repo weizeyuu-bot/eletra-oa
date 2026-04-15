@@ -19,31 +19,31 @@ export interface UpdateUserRequest {
 }
 
 export const userService = {
-  // 获取所有用户
+  // Get all users
   getAll: async (): Promise<User[]> => {
     const response = await api.get('/users');
     return response.data;
   },
 
-  // 新增用户
+  // Create user
   create: async (data: CreateUserRequest): Promise<User> => {
     const response = await api.post('/users', data);
     return response.data;
   },
 
-  // 获取单个用户
+  // Get one user
   getById: async (id: string): Promise<User> => {
     const response = await api.get(`/users/${id}`);
     return response.data;
   },
 
-  // 更新用户
+  // Update user
   update: async (id: string, data: UpdateUserRequest): Promise<User> => {
     const response = await api.patch(`/users/${id}`, data);
     return response.data;
   },
 
-  // 删除用户
+  // Delete user
   delete: async (id: string) => {
     const response = await api.delete(`/users/${id}`);
     return response.data;

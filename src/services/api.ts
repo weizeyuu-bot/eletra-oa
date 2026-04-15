@@ -13,8 +13,8 @@ const resolveApiBaseUrl = () => {
     return env.VITE_LAN_API_URL;
   }
 
-  // 本地开发时通过 VITE_API_URL=http://localhost:3002/api 覆盖
-  // 无配置时默认使用后端机器的局域网 WiFi 网卡地址
+  // Override with VITE_API_URL=http://localhost:3002/api during local development.
+  // Fallback to backend machine LAN WiFi address when not configured.
   return 'http://10.160.8.42:3002/api';
 };
 
@@ -27,7 +27,7 @@ const api = axios.create({
   },
 });
 
-// 请求拦截器 - 添加 token
+// Request interceptor - attach token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) {
@@ -36,7 +36,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 响应拦截器 - 处理错误
+// Response interceptor - handle auth errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {

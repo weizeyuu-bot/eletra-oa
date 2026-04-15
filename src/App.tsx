@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard,
   Grid,
@@ -675,6 +675,7 @@ const Header = ({
   unreadNoticeCount: number;
   isRefreshing: boolean;
 }) => {
+  const { t, locale, setLocale } = useI18n();
   const results = fuzzySearchTargets(SEARCH_TARGETS, searchQuery);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
@@ -817,11 +818,11 @@ const Header = ({
           <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full border border-gray-100 mr-2">
             <Languages className="w-3.5 h-3.5 text-gray-400" />
             <div className="flex items-center gap-1.5 text-[10px] font-bold">
-              <span className="text-blue-600 cursor-pointer">中</span>
+              <button onClick={() => setLocale && setLocale('zh')} aria-label="选择中文" className={`px-1 ${locale === 'zh' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>中</button>
               <span className="text-gray-300">|</span>
-              <span className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">EN</span>
+              <button onClick={() => setLocale && setLocale('en')} aria-label="选择英文" className={`px-1 ${locale === 'en' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>EN</button>
               <span className="text-gray-300">|</span>
-              <span className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">PT</span>
+              <button onClick={() => setLocale && setLocale('pt')} aria-label="选择葡萄牙语" className={`px-1 ${locale === 'pt' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>PT</button>
             </div>
           </div>
           <button
@@ -863,8 +864,6 @@ const Header = ({
           <div className="flex flex-col">
             <span className="text-sm font-medium text-gray-700">{user?.nickname || '王严严'}</span>
             <div className="flex items-center gap-2">
-              <button onClick={() => { setLocale && setLocale('zh'); }} className={`text-[10px] ${locale === 'zh' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>中</button>
-              <button onClick={() => { setLocale && setLocale('en'); }} className={`text-[10px] ${locale === 'en' ? 'text-blue-600' : 'text-gray-400'} hover:text-blue-700`}>EN</button>
               <button onClick={onLogout} className="text-[10px] text-gray-400 hover:text-red-500 text-left transition-colors">{t('logout')}</button>
             </div>
           </div>
@@ -899,6 +898,7 @@ const Workbench = ({
   chats: ChatItem[];
   onOpenChat: (chatId: number) => void;
 }) => {
+  const { t } = useI18n();
   const currentDisplayName = currentUser?.nickname || currentUser?.username || '管理员';
   const pendingCount = workflowRequests.filter(item => item.status === '待审批').length;
   const draftCount = workflowRequests.filter(item => item.status === '草稿').length;
@@ -1916,6 +1916,7 @@ const ApprovalGroups = ({
 };
 
 const LeaveRequestForm = ({ onBack, title = '请假申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -1929,26 +1930,26 @@ const LeaveRequestForm = ({ onBack, title = '请假申请', onSubmitRequest }: {
               <Calendar className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> AI 助手
+            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> 草稿箱 (1)
+            <History className="w-3.5 h-3.5" /> {t('draftBox')} (1)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
-          <button type="button" onClick={() => { alert('草稿已保存'); onBack(); }} className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+          <button type="button" onClick={() => { alert(t('draftSaved')); onBack(); }} className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
+            {t('saveDraft')}
           </button>
-          <button type="button" onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+          <button type="button" onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
+            {t('submitAndContinue')}
           </button>
-          <button type="button" onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
+          <button type="button" onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             提交
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
@@ -2024,14 +2025,14 @@ const LeaveRequestForm = ({ onBack, title = '请假申请', onSubmitRequest }: {
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          系统已自动保存草稿 12:49:59
+          {t('autoSavedDraft')} 12:49:59
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
           <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
@@ -2043,6 +2044,7 @@ const LeaveRequestForm = ({ onBack, title = '请假申请', onSubmitRequest }: {
 };
 
 const TrainingRequestForm = ({ onBack, title = '培训申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2056,27 +2058,27 @@ const TrainingRequestForm = ({ onBack, title = '培训申请', onSubmitRequest }
               <GraduationCap className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> AI 助手
+            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
+            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
-            提交
+            {t('submit')}
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
@@ -2137,16 +2139,16 @@ const TrainingRequestForm = ({ onBack, title = '培训申请', onSubmitRequest }
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          系统已自动保存草稿 12:50:15
+          {t('autoSavedDraft')} 12:50:15
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            {t('submitAndContinue')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -2156,6 +2158,7 @@ const TrainingRequestForm = ({ onBack, title = '培训申请', onSubmitRequest }
 };
 
 const StampRequestForm = ({ onBack, title = '用印申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2169,27 +2172,27 @@ const StampRequestForm = ({ onBack, title = '用印申请', onSubmitRequest }: {
               <Stamp className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> AI 助手
+            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
+            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
-            提交
+            {t('submit')}
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
@@ -2269,16 +2272,16 @@ const StampRequestForm = ({ onBack, title = '用印申请', onSubmitRequest }: {
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          系统已自动保存草稿 12:50:30
+          {t('autoSavedDraft')} 12:50:30
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            {t('submitAndContinue')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -2300,6 +2303,7 @@ const ReimbursementRequestForm = ({
   expenseCategoryOptions: string[];
   bankOptions: string[];
 }) => {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2313,27 +2317,27 @@ const ReimbursementRequestForm = ({
               <FileText className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> AI 助手
+            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> 草稿箱 (3)
+            <History className="w-3.5 h-3.5" /> {t('draftBox')} (3)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
-            提交
+            {t('submit')}
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
@@ -2351,11 +2355,11 @@ const ReimbursementRequestForm = ({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-indigo-600">
               <Wallet className="w-4 h-4" />
-              <h3 className="text-sm font-bold">报销详情 (DETALHES DO REEMBOLSO)</h3>
+              <h3 className="text-sm font-bold">{t('reimburseDetails')}</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">报销类别 (Tipo de Despesa)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('expenseCategoryLabel')}</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
                   {expenseCategoryOptions.map((item) => (
                     <option key={item}>{item}</option>
@@ -2363,25 +2367,25 @@ const ReimbursementRequestForm = ({
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">报销金额 (Valor)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('reimburseAmountLabel')}</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">R$</span>
                   <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none" placeholder="0.00" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">发生日期 (Data)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('occurrenceDate')}</label>
                 <input type="date" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" />
               </div>
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">费用说明 (Descrição)</label>
-                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder="请详细说明费用产生的原因和用途..." />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('expenseDescriptionLabel')}</label>
+                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder={t('expenseDescriptionPlaceholderLong')} />
               </div>
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">发票附件 (Anexos de Fatura)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceAttachmentLabel')}</label>
                 <div className="border-2 border-dashed border-gray-100 rounded-2xl p-8 flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-blue-200 hover:text-blue-500 transition-all cursor-pointer">
                   <PlusCircle className="w-6 h-6" />
-                  <span className="text-xs font-bold">点击或拖拽上传发票照片或PDF</span>
+                  <span className="text-xs font-bold">{t('uploadInvoiceHint')}</span>
                 </div>
               </div>
             </div>
@@ -2390,11 +2394,11 @@ const ReimbursementRequestForm = ({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-indigo-600">
               <CreditCard className="w-4 h-4" />
-              <h3 className="text-sm font-bold">收款账户 (CONTA BANCÁRIA)</h3>
+              <h3 className="text-sm font-bold">{t('payeeAccount')}</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">银行名称 (Banco)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('bankName')}</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
                   {bankOptions.map((item) => (
                     <option key={item}>{item}</option>
@@ -2402,7 +2406,7 @@ const ReimbursementRequestForm = ({
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">账号 (Número da Conta)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('accountNumber')}</label>
                 <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="00000-0" />
               </div>
             </div>
@@ -2414,17 +2418,17 @@ const ReimbursementRequestForm = ({
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          系统已自动保存草稿 12:51:00
+          {t('autoSavedDraft')} 12:51:00
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            {t('submitAndContinue')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
-            提交
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+            {t('submit')}
           </button>
         </div>
       </div>
@@ -2443,6 +2447,7 @@ const PaymentRequestForm = ({
   onSubmitRequest?: (title: string) => void;
   paymentMethodOptions: string[];
 }) => {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2456,24 +2461,24 @@ const PaymentRequestForm = ({
               <CreditCard className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> AI 助手
+            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
+            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             提交
@@ -2494,26 +2499,26 @@ const PaymentRequestForm = ({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-blue-600">
               <Workflow className="w-4 h-4" />
-              <h3 className="text-sm font-bold">付款详情 (DETALHES DO PAGAMENTO)</h3>
+              <h3 className="text-sm font-bold">{t('paymentDetails')}</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">收款单位/个人 (Beneficiário)</label>
-                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="请输入收款方全称" />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('payeeNameLabel')}</label>
+                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder={t('payeeNamePlaceholder')} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">付款金额 (Valor do Pagamento)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('paymentAmountLabel')}</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">R$</span>
                   <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none" placeholder="0.00" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">付款时间 (Data e Hora de Pagamento)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('paymentTimeLabel')}</label>
                 <input type="datetime-local" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">付款方式 (Método)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('paymentMethodLabel')}</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
                   {paymentMethodOptions.map((item) => (
                     <option key={item}>{item}</option>
@@ -2521,8 +2526,8 @@ const PaymentRequestForm = ({
                 </select>
               </div>
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">付款用途 (Finalidade)</label>
-                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder="请详细说明付款原因..." />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('paymentPurposeLabel')}</label>
+                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder={t('paymentPurposePlaceholder')} />
               </div>
             </div>
           </div>
@@ -2533,17 +2538,17 @@ const PaymentRequestForm = ({
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          系统已自动保存草稿 12:51:15
+          {t('autoSavedDraft')} 12:51:15
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            {t('submitAndContinue')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
-            提交
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+            {t('submit')}
           </button>
         </div>
       </div>
@@ -2552,6 +2557,7 @@ const PaymentRequestForm = ({
 };
 
 const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2565,24 +2571,24 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }:
               <FileText className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> AI 助手
+            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
+            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             提交
@@ -2603,34 +2609,34 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }:
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-orange-600">
               <FileText className="w-4 h-4" />
-              <h3 className="text-sm font-bold">开票详情 (DETALHES DA FATURA)</h3>
+              <h3 className="text-sm font-bold">{t('invoiceDetails')}</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">发票抬头 (Razão Social)</label>
-                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="请输入发票抬头" />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceTitleLabel')}</label>
+                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder={t('invoiceTitlePlaceholder')} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">纳税人识别号 (CNPJ/CPF)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('taxIdLabel')}</label>
                 <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="00.000.000/0000-00" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">发票类型 (Tipo de Fatura)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceTypeLabel')}</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none appearance-none">
-                  <option>增值税专用发票 (NF-e)</option>
-                  <option>增值税普通发票 (NFS-e)</option>
+                  <option>{t('invoiceTypeVatSpecial')}</option>
+                  <option>{t('invoiceTypeVatNormal')}</option>
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">开票金额 (Valor Total)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceAmountLabel')}</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">R$</span>
                   <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none" placeholder="0.00" />
                 </div>
               </div>
               <div className="md:col-span-2 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">开票项目 (Itens da Fatura)</label>
-                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder="请列出开票的具体项目和明细..." />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('invoiceItemsLabel')}</label>
+                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder={t('invoiceItemsPlaceholder')} />
               </div>
             </div>
           </div>
@@ -2641,17 +2647,17 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }:
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          系统已自动保存草稿 12:51:30
+          {t('autoSavedDraft')} 12:51:30
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            {t('submitAndContinue')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
-            提交
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+            {t('submit')}
           </button>
         </div>
       </div>
@@ -2660,6 +2666,7 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }:
 };
 
 const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2673,24 +2680,24 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitReques
               <ShoppingCart className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> AI 助手
+            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> 草稿箱 (1)
+            <History className="w-3.5 h-3.5" /> {t('draftBox')} (1)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             提交
@@ -2750,16 +2757,16 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitReques
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          系统已自动保存草稿 12:51:45
+          {t('autoSavedDraft')} 12:51:45
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
+            {t('submitAndContinue')}
           </button>
-          <button onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+          <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
           </button>
         </div>
@@ -2769,6 +2776,7 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitReques
 };
 
 const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitRequest }: { onBack: () => void; title?: string; onSubmitRequest?: (title: string) => void }) => {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col h-full bg-gray-50/50">
       {/* Header */}
@@ -2782,24 +2790,24 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitReques
               <Briefcase className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> AI 助手
+            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
           </button>
           <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> 草稿箱 (0)
+            <History className="w-3.5 h-3.5" /> {t('draftBox')} (0)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
           <button className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
             提交
@@ -2844,26 +2852,26 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitReques
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          系统已自动保存草稿 12:52:00
+          {t('autoSavedDraft')} 12:52:00
         </div>
         <div className="flex items-center gap-3">
           <button 
             type="button"
-            onClick={() => { alert('草稿已保存'); onBack(); }}
+            onClick={() => { alert(t('draftSaved')); onBack(); }}
             className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
           >
-            存草稿
+            {t('saveDraft')}
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }}
+            onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }}
             className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
           >
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }}
+            onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }}
             className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
           >
             提交
@@ -2875,6 +2883,7 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitReques
 };
 
 const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onSubmitRequest }: { onBack: () => void; title?: string; currentUser?: any; onSubmitRequest?: (title: string) => void }) => {
+  const { t } = useI18n();
   const [needVehicle, setNeedVehicle] = useState(true);
   const [needBaggage, setNeedBaggage] = useState(true);
   const [needHotel, setNeedHotel] = useState(true);
@@ -2916,36 +2925,36 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
               <Plane className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">创建记录</h2>
+              <h2 className="text-lg font-bold text-gray-800">{t('createRecord')}</h2>
               <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-xs font-bold hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5" /> AI 助手
+            <Sparkles className="w-3.5 h-3.5" /> {t('aiAssistant')}
           </button>
-          <button type="button" onClick={() => alert('打开草稿箱') } className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
-            <History className="w-3.5 h-3.5" /> 草稿箱 (2)
+          <button type="button" onClick={() => alert(t('openDraftBox')) } className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors">
+            <History className="w-3.5 h-3.5" /> {t('draftBox')} (2)
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button 
             type="button"
-            onClick={() => { alert('草稿已保存'); onBack(); }}
+            onClick={() => { alert(t('draftSaved')); onBack(); }}
             className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all"
           >
-            存草稿
+            {t('saveDraft')}
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); alert('提交成功，正在创建下一条...'); }}
+            onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccessAndContinue')); }}
             className="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-all"
           >
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button 
             type="button"
-            onClick={() => { onSubmitRequest?.(title); alert('提交成功'); onBack(); }}
+            onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }}
             className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all"
           >
             提交
@@ -3316,14 +3325,14 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
       <div className="bg-white border-t border-gray-100 px-8 py-4 flex items-center justify-between shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          系统已自动保存草稿 19:37:59
+          {t('autoSavedDraft')} 19:37:59
         </div>
         <div className="flex items-center gap-3">
           <button className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all">
-            存草稿
+            {t('saveDraft')}
           </button>
           <button className="px-6 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all">
-            提交并继续创建
+            {t('submitAndContinue')}
           </button>
           <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
             提交
@@ -3712,7 +3721,7 @@ const TravelRequestReport = () => {
             <MessageSquare className="w-4 h-4 cursor-pointer hover:text-blue-600" />
             <div className="flex items-center gap-1 cursor-pointer hover:text-blue-600">
               <Library className="w-4 h-4" />
-              <span className="text-xs">草稿箱</span>
+              <span className="text-xs">{t('draftBox')}</span>
             </div>
           </div>
           <button className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors">
@@ -4519,9 +4528,9 @@ const ReimbursementForm = ({ onClose, onSubmitRequest }: { onClose: () => void; 
             <span className="text-sm text-gray-500">继续创建时，保留本次提交内容</span>
           </label>
           <div className="flex gap-3">
-            <button type="button" onClick={() => alert('草稿已保存')} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">存草稿</button>
-            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); alert('提交成功，正在创建下一条...'); }} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">提交并继续创建</button>
-            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); alert('提交成功'); onClose(); }} className="px-8 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all">提交</button>
+            <button type="button" onClick={() => alert('草稿已保存')} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">{t('saveDraft')}</button>
+            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); alert(t('submitSuccessAndContinue')); }} className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">{t('submitAndContinue')}</button>
+            <button type="button" onClick={() => { onSubmitRequest?.('费用报销'); alert(t('submitSuccess')); onClose(); }} className="px-8 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition-all">提交</button>
           </div>
         </div>
       </div>
@@ -5089,3 +5098,5 @@ export default function App() {
     </div>
   );
 }
+
+
