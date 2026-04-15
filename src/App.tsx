@@ -2481,7 +2481,7 @@ const PaymentRequestForm = ({
             {t('submitAndContinue')}
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
-            提交
+            {t('submit')}
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
@@ -2591,7 +2591,7 @@ const InvoiceRequestForm = ({ onBack, title = '开票申请', onSubmitRequest }:
             {t('submitAndContinue')}
           </button>
           <button className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all">
-            提交
+            {t('submit')}
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
@@ -2718,35 +2718,35 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitReques
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-purple-600">
               <Package className="w-4 h-4" />
-              <h3 className="text-sm font-bold">采购详情 (DETALHES DA COMPRA)</h3>
+              <h3 className="text-sm font-bold">{t('procurementDetails')}</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">物品名称 (Nome do Item)</label>
-                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="请输入采购物品名称" />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('itemNameLabel')}</label>
+                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder={t('itemNamePlaceholder')} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">规格型号 (Especificação)</label>
-                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="例如: 16GB RAM, 512GB SSD" />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('specificationLabel')}</label>
+                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder={t('specificationPlaceholder')} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">数量 (Quantidade)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('quantityLabel')}</label>
                 <input type="number" defaultValue={1} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">预估单价 (Preço Unitário Estimado)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('estimatedUnitPriceLabel')}</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">R$</span>
                   <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none" placeholder="0.00" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">期望交付时间 (Data e Hora de Entrega Desejada)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('desiredDeliveryDateTimeLabel')}</label>
                 <input type="datetime-local" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" />
               </div>
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">采购原因 (Motivo da Compra)</label>
-                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder="请说明采购的必要性..." />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('purchaseReasonLabel')}</label>
+                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder={t('purchaseReasonPlaceholder')} />
               </div>
             </div>
           </div>
@@ -2767,7 +2767,7 @@ const ProcurementRequestForm = ({ onBack, title = '采购申请', onSubmitReques
             {t('submitAndContinue')}
           </button>
           <button onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }} className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
-            提交
+            {t('submit')}
           </button>
         </div>
       </div>
@@ -2828,20 +2828,20 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitReques
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-blue-600">
               <Layers className="w-4 h-4" />
-              <h3 className="text-sm font-bold">领用详情 (DETALHES DA REQUISIÇÃO)</h3>
+              <h3 className="text-sm font-bold">{t('requisitionDetails')}</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">领用物品 (Item Requisitado)</label>
-                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder="请输入领用物品名称" />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('requisitionItemLabel')}</label>
+                <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" placeholder={t('requisitionItemPlaceholder')} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">领用数量 (Quantidade)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('requisitionQuantityLabel')}</label>
                 <input type="number" defaultValue={1} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none" />
               </div>
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">领用用途 (Finalidade)</label>
-                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder="请说明领用物品的用途..." />
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('requisitionPurposeLabel')}</label>
+                <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm outline-none resize-none" placeholder={t('requisitionPurposePlaceholder')} />
               </div>
             </div>
           </div>
@@ -2874,7 +2874,7 @@ const RequisitionRequestForm = ({ onBack, title = '领用申请', onSubmitReques
             onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }}
             className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
           >
-            提交
+            {t('submit')}
           </button>
         </div>
       </div>
@@ -2957,7 +2957,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
             onClick={() => { onSubmitRequest?.(title); alert(t('submitSuccess')); onBack(); }}
             className="px-6 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all"
           >
-            提交
+            {t('submit')}
           </button>
           <div className="h-6 w-px bg-gray-100 mx-1" />
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400">
@@ -2976,18 +2976,18 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-blue-600">
               <Users2 className="w-4 h-4" />
-              <h3 className="text-sm font-bold">申请人信息 (PASSAGEIRO)</h3>
+              <h3 className="text-sm font-bold">{t('travelApplicantInfo')}</h3>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">姓名 (Nome Completo)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('fullNameLabel')}</label>
                 <div className="relative">
                   <input type="text" defaultValue={currentUser?.nickname || currentUser?.username || ''} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
                   <Search className="w-4 h-4 text-gray-300 absolute right-3 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">成本中心 (Centro de Custos)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('costCenterLabel')}</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none cursor-pointer appearance-none">
                   {costCenters.map(cc => (
                     <option key={cc} value={cc}>{cc}</option>
@@ -2995,27 +2995,27 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">出差事由 (Motivo da Viagem)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('travelReasonLabel')}</label>
                 <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none cursor-pointer appearance-none">
-                  <option value="1">业务洽谈 (Negócios)</option>
-                  <option value="2">技术支持 (Suporte Técnico)</option>
-                  <option value="3">内部培训 (Treinamento)</option>
+                  <option value="1">{t('travelReasonBusiness')}</option>
+                  <option value="2">{t('travelReasonTechSupport')}</option>
+                  <option value="3">{t('travelReasonInternalTraining')}</option>
                 </select>
               </div>
               <div className="md:col-span-3 space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">具体说明 (Justificativa)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('detailDescriptionLabel')}</label>
                 <textarea rows={3} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none resize-none" defaultValue="Alinhar processos operacionais, padronizar rotinas, fortalecer a comunicação entre as equipes e garantir a uniformidade na execução das atividades." />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">是否首次出差? (VIAJANDO PELA PRIMEIRA VEZ?)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('firstTimeTravelLabel')}</label>
                 <div className="flex gap-6 mt-2">
                   <label className="flex items-center gap-2 cursor-pointer group">
                     <input type="radio" name="first_time" className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" />
-                    <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">是 (SIM)</span>
+                    <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">{t('yes')}</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer group">
                     <input type="radio" name="first_time" className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" defaultChecked />
-                    <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">否 (NÃO)</span>
+                    <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">{t('no')}</span>
                   </label>
                 </div>
               </div>
@@ -3028,7 +3028,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                 <input type="text" defaultValue="832.776.332-68" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">出生日期 (Data de Nascimento)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('dateOfBirthLabel')}</label>
                 <div className="relative">
                   <input type="text" defaultValue="1986/01/25" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
                   <Calendar className="w-4 h-4 text-gray-300 absolute right-3 top-1/2 -translate-y-1/2" />
@@ -3042,16 +3042,16 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center justify-between">
               <div className="flex items-center gap-2 text-blue-600">
                 <Building2 className="w-4 h-4" />
-                <h3 className="text-sm font-bold">行程段 (TRECHOS AÉREO / ÔNIBUS)</h3>
+                <h3 className="text-sm font-bold">{t('travelSegments')}</h3>
               </div>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" className="w-4 h-4 rounded text-blue-600 border-gray-300 focus:ring-blue-500" defaultChecked />
-                  <span className="text-xs font-bold text-gray-500 uppercase">飞机 (AÉREO)</span>
+                  <span className="text-xs font-bold text-gray-500 uppercase">{t('airTravel')}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" className="w-4 h-4 rounded text-blue-600 border-gray-300 focus:ring-blue-500" />
-                  <span className="text-xs font-bold text-gray-500 uppercase">巴士 (ÔNIBUS)</span>
+                  <span className="text-xs font-bold text-gray-500 uppercase">{t('busTravel')}</span>
                 </label>
               </div>
             </div>
@@ -3059,29 +3059,29 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
               {segments.map((seg, index) => (
                 <div key={seg.id} className="relative group">
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded uppercase">行程 {index + 1}</span>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-bold rounded uppercase">{`${t('segmentLabel')} ${index + 1}`}</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-5 bg-gray-50/50 rounded-2xl border border-transparent hover:border-blue-100 hover:bg-white transition-all">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">出发地 (Origem)</label>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('originLabel')}</label>
                       <select className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-200 appearance-none cursor-pointer" defaultValue={seg.from}>
-                        <option value="">请选择城市</option>
+                        <option value="">{t('selectCity')}</option>
                         {brazilCities.map(city => (
                           <option key={city} value={city}>{city}</option>
                         ))}
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">目的地 (Destino)</label>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('destinationLabel')}</label>
                       <select className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-200 appearance-none cursor-pointer" defaultValue={seg.to}>
-                        <option value="">请选择城市</option>
+                        <option value="">{t('selectCity')}</option>
                         {brazilCities.map(city => (
                           <option key={city} value={city}>{city}</option>
                         ))}
                       </select>
                     </div>
                     <div className="md:col-span-2 space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">日期与时间 (Data e Horário)</label>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('dateTimeLabel')}</label>
                       <input type="datetime-local" defaultValue={seg.dateTime} className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-200" />
                     </div>
                   </div>
@@ -3099,7 +3099,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                 onClick={addSegment}
                 className="w-full py-3 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 text-sm font-bold hover:border-blue-200 hover:text-blue-500 hover:bg-blue-50/30 transition-all flex items-center justify-center gap-2"
               >
-                <Plus className="w-4 h-4" /> 添加行程段 (Adicionar Trecho)
+                <Plus className="w-4 h-4" /> {t('addSegment')}
               </button>
             </div>
           </div>
@@ -3109,7 +3109,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-blue-600">
                 <Briefcase className="w-4 h-4" />
-                <h3 className="text-sm font-bold">行李 (BAGAGEM)</h3>
+                <h3 className="text-sm font-bold">{t('baggageTitle')}</h3>
               </div>
               <div className="p-6 space-y-6">
                 <label className="flex items-center gap-3 cursor-pointer group">
@@ -3119,7 +3119,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                     checked={needBaggage}
                     onChange={(e) => setNeedBaggage(e.target.checked)}
                   />
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">需要托运行李? (NECESSITA DE BAGAGEM?)</span>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{t('needCheckedBaggageLabel')}</span>
                 </label>
                 
                 <AnimatePresence>
@@ -3131,10 +3131,10 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                       className="overflow-hidden"
                     >
                       <div className="space-y-3 pt-2">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">数量 (QUANTIDADE):</label>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('baggageQuantityLabel')}</label>
                         <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none cursor-pointer appearance-none">
                           {[...Array(11)].map((_, i) => (
-                            <option key={i} value={i}>{i} 件</option>
+                            <option key={i} value={i}>{`${i} ${t('pieceUnit')}`}</option>
                           ))}
                         </select>
                       </div>
@@ -3146,7 +3146,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-blue-600">
                 <Home className="w-4 h-4" />
-                <h3 className="text-sm font-bold">住宿 (HOSPEDAGEM)</h3>
+                <h3 className="text-sm font-bold">{t('accommodationTitle')}</h3>
               </div>
               <div className="p-6 space-y-6">
                 <label className="flex items-center gap-3 cursor-pointer group">
@@ -3156,7 +3156,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                     checked={needHotel}
                     onChange={(e) => setNeedHotel(e.target.checked)}
                   />
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">需要酒店? (NECESSITA DE HOTEL?)</span>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{t('needHotelLabel')}</span>
                 </label>
                 
                 <AnimatePresence>
@@ -3170,30 +3170,30 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                       <div className="space-y-4 pt-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">入住城市 (Cidade)</label>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('checkInCityLabel')}</label>
                             <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none appearance-none cursor-pointer">
-                              <option value="">请选择城市</option>
+                              <option value="">{t('selectCity')}</option>
                               {brazilCities.map(city => (
                                 <option key={city} value={city}>{city}</option>
                               ))}
                             </select>
                           </div>
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">酒店名称 (Nome do Hotel)</label>
-                            <input type="text" placeholder="请输入酒店名称" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('hotelNameLabel')}</label>
+                            <input type="text" placeholder={t('hotelNamePlaceholder')} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">入住时间 (Check-in)</label>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('checkInTimeLabel')}</label>
                             <input type="datetime-local" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
                           </div>
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">离开时间 (Check-out)</label>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('checkOutTimeLabel')}</label>
                             <input type="datetime-local" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
                           </div>
                           <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">预计费用 (Custo Estimado)</label>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('estimatedCostLabel')}</label>
                             <div className="relative">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">R$</span>
                               <input type="number" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl pl-8 pr-4 py-2 text-sm transition-all outline-none" />
@@ -3212,23 +3212,23 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-blue-600">
               <CreditCard className="w-4 h-4" />
-              <h3 className="text-sm font-bold">费用与银行信息 (ADIANTAMENTO & DADOS BANCÁRIOS)</h3>
+              <h3 className="text-sm font-bold">{t('advanceBankInfoTitle')}</h3>
             </div>
             <div className="p-6 space-y-8">
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <input type="checkbox" className="w-5 h-5 rounded text-blue-600 border-gray-300 focus:ring-blue-500" defaultChecked />
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">需要预付款? (NECESSITA DE ADIANTAMENTO?)</span>
+                  <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{t('needAdvancePaymentLabel')}</span>
                 </label>
                 <div className="flex gap-4">
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold">
-                    已选币种: BRL
+                    {t('selectedCurrency')}: BRL
                   </div>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">币种 (Moeda)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('currencyLabel')}</label>
                   <select className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none appearance-none">
                     <option value="BRL">BRL - Real</option>
                     <option value="USD">USD - Dólar</option>
@@ -3236,26 +3236,26 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">金额 (Valor)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('advanceAmountLabel')}</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold">R$</span>
                     <input type="text" defaultValue="1,320.00" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm transition-all outline-none font-mono" />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">银行 (Banco)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('bankName')}</label>
                   <input type="text" defaultValue="Itaú Unibanco" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">网点 (Agência)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('branchLabel')}</label>
                   <input type="text" defaultValue="9651" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">账号 (Conta)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('accountNumber')}</label>
                   <input type="text" defaultValue="03756-7" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">PIX (Chave)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('pixKeyLabel')}</label>
                   <input type="text" defaultValue="83277633268" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" />
                 </div>
               </div>
@@ -3266,7 +3266,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2 text-blue-600">
               <RotateCcw className="w-4 h-4 rotate-90" />
-              <h3 className="text-sm font-bold">车辆租赁 (VEÍCULO)</h3>
+              <h3 className="text-sm font-bold">{t('vehicleRentalTitle')}</h3>
             </div>
             <div className="p-6 space-y-6">
               <label className="flex items-center gap-3 cursor-pointer group">
@@ -3276,7 +3276,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                   checked={needVehicle}
                   onChange={(e) => setNeedVehicle(e.target.checked)}
                 />
-                <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">需要租车? (NECESSITA DE LOCAÇÃO DE VEÍCULO?)</span>
+                <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{t('needVehicleRentalLabel')}</span>
               </label>
               
               <AnimatePresence>
@@ -3289,25 +3289,25 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
                   >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">主驾驶 (Condutor Principal)</label>
-                        <input type="text" defaultValue="wyycst1120" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" placeholder="请输入姓名" />
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('primaryDriverLabel')}</label>
+                        <input type="text" defaultValue="wyycst1120" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" placeholder={t('enterNamePlaceholder')} />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">副驾驶 (Condutor Adicional)</label>
-                        <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" placeholder="如有请填写" />
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('additionalDriverLabel')}</label>
+                        <input type="text" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2.5 text-sm transition-all outline-none" placeholder={t('fillIfAnyPlaceholder')} />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">取车点与时间</label>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('pickupLocationTimeLabel')}</label>
                           <div className="flex flex-col gap-2">
-                            <input type="text" placeholder="取车地点" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
+                            <input type="text" placeholder={t('pickupLocationPlaceholder')} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
                             <input type="datetime-local" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
                           </div>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">还车点与时间</label>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{t('dropoffLocationTimeLabel')}</label>
                           <div className="flex flex-col gap-2">
-                            <input type="text" placeholder="还车地点" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
+                            <input type="text" placeholder={t('dropoffLocationPlaceholder')} className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
                             <input type="datetime-local" className="w-full bg-gray-50 border border-transparent focus:border-blue-200 focus:bg-white rounded-xl px-4 py-2 text-sm transition-all outline-none" />
                           </div>
                         </div>
@@ -3335,7 +3335,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
             {t('submitAndContinue')}
           </button>
           <button className="px-10 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
-            提交
+            {t('submit')}
           </button>
         </div>
       </div>
@@ -3344,6 +3344,7 @@ const TravelRequestForm = ({ onBack, title = '出差申请单', currentUser, onS
 };
 
 const AttendanceReport = () => {
+  const { t } = useI18n();
   const data = [
     { id: 1, name: '王严严', dept: '财务部', month: '2026-03', normal: 21, late: 0, absent: 0, otNormal: 4.5, otWeekend: 0, leave: 0, status: '正常' },
     { id: 2, name: '吴勇', dept: '市场部', month: '2026-03', normal: 19, late: 2, absent: 0, otNormal: 12, otWeekend: 8, leave: 0, status: '异常' },
@@ -3356,36 +3357,36 @@ const AttendanceReport = () => {
     <div className="flex flex-col h-full bg-white">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-gray-800">考勤月度汇总报表</h2>
+          <h2 className="text-lg font-bold text-gray-800">{t('attendanceMonthlySummaryReport')}</h2>
           <MoreHorizontal className="w-4 h-4 text-gray-400 cursor-pointer" />
         </div>
         <div className="flex items-center gap-4">
           <button className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors">
-            <Download className="w-4 h-4" /> 导出
+            <Download className="w-4 h-4" /> {t('export')}
           </button>
         </div>
       </div>
 
       <div className="p-4 bg-gray-50/50 border-b border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">月份</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('month')}</label>
           <input type="month" defaultValue="2026-03" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">部门</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('department')}</label>
           <select className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-            <option value="">全部部门</option>
-            <option value="财务部">财务部</option>
-            <option value="研发中心">研发中心</option>
-            <option value="市场部">市场部</option>
+            <option value="">{t('allDepartments')}</option>
+            <option value="财务部">{t('deptFinance')}</option>
+            <option value="研发中心">{t('deptResearchCenter')}</option>
+            <option value="市场部">{t('deptMarketing')}</option>
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">姓名</label>
-          <input type="text" placeholder="搜索姓名..." className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('name')}</label>
+          <input type="text" placeholder={t('searchNamePlaceholder')} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
         </div>
         <div className="flex items-end">
-          <button className="w-full bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">查询报表</button>
+          <button className="w-full bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">{t('queryReport')}</button>
         </div>
       </div>
 
@@ -3393,15 +3394,15 @@ const AttendanceReport = () => {
         <table className="w-full text-xs text-left border-collapse min-w-[1000px]">
           <thead className="bg-gray-50 text-gray-500 font-medium sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-3 border-r border-gray-100">姓名</th>
-              <th className="px-4 py-3 border-r border-gray-100">部门</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">出勤天数</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">迟到/早退</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">旷工</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">平时加班(h)</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">周末加班(h)</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">请假天数</th>
-              <th className="px-4 py-3">状态</th>
+              <th className="px-4 py-3 border-r border-gray-100">{t('name')}</th>
+              <th className="px-4 py-3 border-r border-gray-100">{t('department')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('attendanceDays')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('lateEarly')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('absence')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('overtimeWeekdayHours')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('overtimeWeekendHours')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('leaveDays')}</th>
+              <th className="px-4 py-3">{t('status')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -3419,7 +3420,7 @@ const AttendanceReport = () => {
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     row.status === '正常' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
                   }`}>
-                    {row.status}
+                    {row.status === '正常' ? t('statusNormal') : t('statusAbnormal')}
                   </span>
                 </td>
               </tr>
@@ -3432,6 +3433,7 @@ const AttendanceReport = () => {
 };
 
 const ExpenseStatisticsReport = () => {
+  const { t } = useI18n();
   const data = [
     { id: 1, dept: '研发中心', project: 'Eletra V2.0', category: '差旅费', amount: 12500.00, count: 8, budget: '85%', status: '正常' },
     { id: 2, dept: '市场部', project: '春季展会', category: '招待费', amount: 8900.50, count: 12, budget: '92%', status: '预警' },
@@ -3444,45 +3446,45 @@ const ExpenseStatisticsReport = () => {
     <div className="flex flex-col h-full bg-white">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-gray-800">费用报销统计表</h2>
+          <h2 className="text-lg font-bold text-gray-800">{t('expenseReimbursementStatsReport')}</h2>
           <MoreHorizontal className="w-4 h-4 text-gray-400 cursor-pointer" />
         </div>
         <div className="flex items-center gap-4">
           <button className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors">
-            <Download className="w-4 h-4" /> 导出
+            <Download className="w-4 h-4" /> {t('export')}
           </button>
         </div>
       </div>
 
       <div className="p-4 bg-gray-50/50 border-b border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">统计维度</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('statisticsDimension')}</label>
           <select className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-            <option>按部门统计</option>
-            <option>按项目统计</option>
-            <option>按费用类型统计</option>
+            <option>{t('byDepartment')}</option>
+            <option>{t('byProject')}</option>
+            <option>{t('byExpenseCategory')}</option>
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">时间范围</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('timeRange')}</label>
           <select className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-            <option>本月</option>
-            <option>上月</option>
-            <option>本季度</option>
-            <option>本年度</option>
+            <option>{t('thisMonth')}</option>
+            <option>{t('lastMonth')}</option>
+            <option>{t('thisQuarter')}</option>
+            <option>{t('thisYear')}</option>
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">状态</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('status')}</label>
           <select className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-            <option>全部</option>
-            <option>正常</option>
-            <option>预警</option>
-            <option>超支</option>
+            <option>{t('all')}</option>
+            <option>{t('statusNormal')}</option>
+            <option>{t('statusWarning')}</option>
+            <option>{t('statusOverBudget')}</option>
           </select>
         </div>
         <div className="flex items-end">
-          <button className="w-full bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">生成统计</button>
+          <button className="w-full bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">{t('generateStatistics')}</button>
         </div>
       </div>
 
@@ -3490,12 +3492,12 @@ const ExpenseStatisticsReport = () => {
         <table className="w-full text-xs text-left border-collapse min-w-[900px]">
           <thead className="bg-gray-50 text-gray-500 font-medium sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-3 border-r border-gray-100">部门/项目</th>
-              <th className="px-4 py-3 border-r border-gray-100">费用类别</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-right">报销总额 (R$)</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">报销单数</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">预算执行率</th>
-              <th className="px-4 py-3">状态</th>
+              <th className="px-4 py-3 border-r border-gray-100">{t('deptOrProject')}</th>
+              <th className="px-4 py-3 border-r border-gray-100">{t('expenseCategory')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-right">{t('reimbursementTotal')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('reimbursementCount')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('budgetExecutionRate')}</th>
+              <th className="px-4 py-3">{t('status')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -3528,7 +3530,7 @@ const ExpenseStatisticsReport = () => {
                     row.status === '正常' ? 'bg-green-100 text-green-600' : 
                     row.status === '预警' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'
                   }`}>
-                    {row.status}
+                    {row.status === '正常' ? t('statusNormal') : row.status === '预警' ? t('statusWarning') : t('statusOverBudget')}
                   </span>
                 </td>
               </tr>
@@ -3541,6 +3543,7 @@ const ExpenseStatisticsReport = () => {
 };
 
 const ProcurementDetailReport = () => {
+  const { t } = useI18n();
   const data = [
     { id: 'PO202603001', item: 'MacBook Pro 14"', supplier: 'Apple Store', qty: 5, price: 15999.00, total: 79995.00, date: '2026-04-10', status: '进行中', progress: 60 },
     { id: 'PO202603002', item: 'Dell U2723QE', supplier: 'Dell China', qty: 10, price: 3899.00, total: 38990.00, date: '2026-04-05', status: '待发货', progress: 20 },
@@ -3553,37 +3556,37 @@ const ProcurementDetailReport = () => {
     <div className="flex flex-col h-full bg-white">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-gray-800">采购执行明细报表</h2>
+          <h2 className="text-lg font-bold text-gray-800">{t('procurementExecutionDetailReport')}</h2>
           <MoreHorizontal className="w-4 h-4 text-gray-400 cursor-pointer" />
         </div>
         <div className="flex items-center gap-4">
           <button className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors">
-            <Download className="w-4 h-4" /> 导出
+            <Download className="w-4 h-4" /> {t('export')}
           </button>
         </div>
       </div>
 
       <div className="p-4 bg-gray-50/50 border-b border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">订单编号</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('orderNumber')}</label>
           <input type="text" placeholder="PO..." className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">供应商</label>
-          <input type="text" placeholder="搜索供应商..." className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('supplier')}</label>
+          <input type="text" placeholder={t('searchSupplierPlaceholder')} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">执行状态</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('executionStatus')}</label>
           <select className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-            <option>全部</option>
-            <option>审批中</option>
-            <option>待发货</option>
-            <option>运输中</option>
-            <option>已入库</option>
+            <option>{t('all')}</option>
+            <option>{t('statusInApproval')}</option>
+            <option>{t('statusPendingShipment')}</option>
+            <option>{t('statusInTransit')}</option>
+            <option>{t('statusInStock')}</option>
           </select>
         </div>
         <div className="flex items-end">
-          <button className="w-full bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">查询明细</button>
+          <button className="w-full bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">{t('queryDetails')}</button>
         </div>
       </div>
 
@@ -3591,15 +3594,15 @@ const ProcurementDetailReport = () => {
         <table className="w-full text-xs text-left border-collapse min-w-[1100px]">
           <thead className="bg-gray-50 text-gray-500 font-medium sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-3 border-r border-gray-100">订单编号</th>
-              <th className="px-4 py-3 border-r border-gray-100">物品名称</th>
-              <th className="px-4 py-3 border-r border-gray-100">供应商</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">数量</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-right">单价 (R$)</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-right">总金额 (R$)</th>
-              <th className="px-4 py-3 border-r border-gray-100 text-center">预计交付</th>
-              <th className="px-4 py-3 border-r border-gray-100">执行进度</th>
-              <th className="px-4 py-3">状态</th>
+              <th className="px-4 py-3 border-r border-gray-100">{t('orderNumber')}</th>
+              <th className="px-4 py-3 border-r border-gray-100">{t('itemNameLabel')}</th>
+              <th className="px-4 py-3 border-r border-gray-100">{t('supplier')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('quantityLabel')}</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-right">{t('estimatedUnitPriceLabel')} (R$)</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-right">{t('procurementTotalAmount')} (R$)</th>
+              <th className="px-4 py-3 border-r border-gray-100 text-center">{t('expectedDelivery')}</th>
+              <th className="px-4 py-3 border-r border-gray-100">{t('executionProgress')}</th>
+              <th className="px-4 py-3">{t('status')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -3634,7 +3637,15 @@ const ProcurementDetailReport = () => {
                     row.status === '已入库' ? 'bg-green-100 text-green-600' : 
                     row.status === '审批中' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
                   }`}>
-                    {row.status}
+                    {row.status === '已入库'
+                      ? t('statusInStock')
+                      : row.status === '审批中'
+                        ? t('statusInApproval')
+                        : row.status === '待发货'
+                          ? t('statusPendingShipment')
+                          : row.status === '运输中'
+                            ? t('statusInTransit')
+                            : t('statusInProgress')}
                   </span>
                 </td>
               </tr>
@@ -3647,6 +3658,7 @@ const ProcurementDetailReport = () => {
 };
 
 const TravelRequestReport = () => {
+  const { t } = useI18n();
   const data = [
     { id: 1, name: '王严严', dept: 'FISCAL ELETRA', reason: '业务洽谈', desc: '世界那么大，我想去看看', isFirst: '是', rg: '3203212000060711', dob: '2000-06-07', cpf: '123.456.789-00',
       segments: 'MANAUS→CEARA / 2026-03-08 / 飞机', baggageQty: 2, baggage: true,
@@ -3710,7 +3722,7 @@ const TravelRequestReport = () => {
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-gray-800">出差申请查询报表</h2>
+          <h2 className="text-lg font-bold text-gray-800">{t('travelRequestQueryReport')}</h2>
           <MoreHorizontal className="w-4 h-4 text-gray-400 cursor-pointer" />
         </div>
         <div className="flex items-center gap-4">
@@ -3725,7 +3737,7 @@ const TravelRequestReport = () => {
             </div>
           </div>
           <button className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-700 transition-colors">
-            <Download className="w-4 h-4" /> 导出
+            <Download className="w-4 h-4" /> {t('export')}
           </button>
         </div>
       </div>
@@ -3733,27 +3745,27 @@ const TravelRequestReport = () => {
       {/* Search Bar */}
       <div className="p-4 bg-gray-50/50 border-b border-gray-100 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">姓名</label>
-          <input type="text" placeholder="请输入姓名" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('name')}</label>
+          <input type="text" placeholder={t('enterNamePlaceholder')} className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">成本中心</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('costCenterLabel')}</label>
           <select className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none">
-            <option value="">全部</option>
-            <option value="财务部">财务部</option>
-            <option value="研发中心">研发中心</option>
-            <option value="市场部">市场部</option>
+            <option value="">{t('all')}</option>
+            <option value="财务部">{t('deptFinance')}</option>
+            <option value="研发中心">{t('deptResearchCenter')}</option>
+            <option value="市场部">{t('deptMarketing')}</option>
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">日期自</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('dateFrom')}</label>
           <input type="date" className="w-full bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-gray-400 uppercase">日期至</label>
+          <label className="text-[10px] font-bold text-gray-400 uppercase">{t('dateTo')}</label>
           <div className="flex gap-2">
             <input type="date" className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 outline-none" />
-            <button className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">查询</button>
+            <button className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">{t('search')}</button>
           </div>
         </div>
       </div>
@@ -3763,13 +3775,13 @@ const TravelRequestReport = () => {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-1 py-2 border-b-2 border-blue-600">
             <Grid className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-bold text-blue-600">全部</span>
+            <span className="text-sm font-bold text-blue-600">{t('all')}</span>
             <ChevronDown className="w-3 h-3 text-blue-600" />
           </div>
         </div>
         <div className="flex items-center gap-4 text-xs text-gray-400">
           <RotateCcw className="w-4 h-4 cursor-pointer hover:text-gray-600" />
-          <span>共11行，1/1页</span>
+          <span>{t('totalRowsPageInfo')}</span>
           <div className="flex gap-2">
             <ChevronRight className="w-4 h-4 rotate-180 cursor-not-allowed opacity-30" />
             <ChevronRight className="w-4 h-4 cursor-not-allowed opacity-30" />
@@ -3792,46 +3804,46 @@ const TravelRequestReport = () => {
                   <ChevronDown className="w-3 h-3" />
                 </div>
               </th>
-              <th colSpan={8} className="px-4 py-2 border-r border-b border-gray-100 bg-blue-50 text-blue-600 text-center">申请人信息 (PASSAGEIRO)</th>
-              <th colSpan={1} className="px-4 py-2 border-r border-b border-gray-100 bg-purple-50 text-purple-600 text-center">行程段 (TRECHOS)</th>
-              <th colSpan={2} className="px-4 py-2 border-r border-b border-gray-100 bg-orange-50 text-orange-600 text-center">行李 (BAGAGEM)</th>
-              <th colSpan={6} className="px-4 py-2 border-r border-b border-gray-100 bg-green-50 text-green-600 text-center">住宿 (HOSPEDAGEM)</th>
-              <th colSpan={7} className="px-4 py-2 border-r border-b border-gray-100 bg-yellow-50 text-yellow-700 text-center">费用与银行 (ADIANTAMENTO)</th>
-              <th colSpan={7} className="px-4 py-2 border-b border-gray-100 bg-red-50 text-red-600 text-center">车辆租赁 (VEÍCULO)</th>
+              <th colSpan={8} className="px-4 py-2 border-r border-b border-gray-100 bg-blue-50 text-blue-600 text-center">{t('travelApplicantInfo')}</th>
+              <th colSpan={1} className="px-4 py-2 border-r border-b border-gray-100 bg-purple-50 text-purple-600 text-center">{t('travelSegments')}</th>
+              <th colSpan={2} className="px-4 py-2 border-r border-b border-gray-100 bg-orange-50 text-orange-600 text-center">{t('baggageTitle')}</th>
+              <th colSpan={6} className="px-4 py-2 border-r border-b border-gray-100 bg-green-50 text-green-600 text-center">{t('accommodationTitle')}</th>
+              <th colSpan={7} className="px-4 py-2 border-r border-b border-gray-100 bg-yellow-50 text-yellow-700 text-center">{t('advanceBankInfoTitle')}</th>
+              <th colSpan={7} className="px-4 py-2 border-b border-gray-100 bg-red-50 text-red-600 text-center">{t('vehicleRentalTitle')}</th>
             </tr>
             {/* Field headers */}
             <tr>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">姓名</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">成本中心</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">出差事由</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">具体说明</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">首次出差</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('name')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('costCenterLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('travelReasonLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('detailDescriptionLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('firstTravel')}</th>
               <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">RG</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">出生日期</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('dateOfBirthLabel')}</th>
               <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">CPF</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">行程段</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">托运行李</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">数量</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">需要酒店</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">入住城市</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">酒店名称</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">入住时间</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">离开时间</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">预计费用</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">需要预付款</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">币种</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">金额</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">银行</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">网点 (Agência)</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">账号 (Conta)</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">PIX</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">需要租车</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">主驾驶</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">副驾驶</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">取车地点</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">取车时间</th>
-              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">还车地点</th>
-              <th className="px-4 py-2 whitespace-nowrap">还车时间</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('travelSegments')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('checkedBaggage')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('quantityLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('needHotel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('checkInCityLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('hotelNameLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('checkInTimeLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('checkOutTimeLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('estimatedCostLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('needAdvancePayment')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('currencyLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('advanceAmountLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('bankName')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('branchLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('accountNumber')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('pixKeyLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('needVehicleRental')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('primaryDriverLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('additionalDriverLabel')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('pickupLocation')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('pickupTime')}</th>
+              <th className="px-4 py-2 border-r border-gray-100 whitespace-nowrap">{t('dropoffLocation')}</th>
+              <th className="px-4 py-2 whitespace-nowrap">{t('dropoffTime')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -3854,7 +3866,7 @@ const TravelRequestReport = () => {
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.reason}</td>
                 <td className="px-4 py-2 border-r border-gray-50 text-gray-500 max-w-[160px] truncate">{row.desc}</td>
                 <td className="px-4 py-2 border-r border-gray-50 text-center">
-                  {row.isFirst === '是' ? <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[10px] font-bold">是</span> : <span className="text-gray-300">否</span>}
+                  {row.isFirst === '是' ? <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[10px] font-bold">{t('yes')}</span> : <span className="text-gray-300">{t('no')}</span>}
                 </td>
                 <td className="px-4 py-2 border-r border-gray-50 font-mono whitespace-nowrap">{row.rg}</td>
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.dob}</td>
@@ -3868,11 +3880,11 @@ const TravelRequestReport = () => {
                   <input type="checkbox" checked={row.baggage} readOnly className="rounded border-gray-300 text-blue-600" />
                 </td>
                 <td className="px-4 py-2 border-r border-gray-50 text-center">
-                  {row.baggageQty > 0 ? <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded font-bold">{row.baggageQty} 件</span> : <span className="text-gray-300">—</span>}
+                  {row.baggageQty > 0 ? <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded font-bold">{`${row.baggageQty} ${t('pieceUnit')}`}</span> : <span className="text-gray-300">—</span>}
                 </td>
                 {/* 住宿 */}
                 <td className="px-4 py-2 border-r border-gray-50 text-center">
-                  {row.needHotel ? <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[10px] font-bold">是</span> : <span className="text-gray-300">否</span>}
+                  {row.needHotel ? <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[10px] font-bold">{t('yes')}</span> : <span className="text-gray-300">{t('no')}</span>}
                 </td>
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.hotelCity || <span className="text-gray-300">—</span>}</td>
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.hotelName || <span className="text-gray-300">—</span>}</td>
@@ -3881,7 +3893,7 @@ const TravelRequestReport = () => {
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap font-mono">{row.hotelCost || <span className="text-gray-300">—</span>}</td>
                 {/* 费用与银行 */}
                 <td className="px-4 py-2 border-r border-gray-50 text-center">
-                  {row.needAdvance ? <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-[10px] font-bold">是</span> : <span className="text-gray-300">否</span>}
+                  {row.needAdvance ? <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-[10px] font-bold">{t('yes')}</span> : <span className="text-gray-300">{t('no')}</span>}
                 </td>
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.currency || <span className="text-gray-300">—</span>}</td>
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap font-mono">{row.amount || <span className="text-gray-300">—</span>}</td>
@@ -3891,7 +3903,7 @@ const TravelRequestReport = () => {
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap font-mono">{row.pix || <span className="text-gray-300">—</span>}</td>
                 {/* 车辆租赁 */}
                 <td className="px-4 py-2 border-r border-gray-50 text-center">
-                  {row.needVehicle ? <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold">是</span> : <span className="text-gray-300">否</span>}
+                  {row.needVehicle ? <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold">{t('yes')}</span> : <span className="text-gray-300">{t('no')}</span>}
                 </td>
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.driver || <span className="text-gray-300">—</span>}</td>
                 <td className="px-4 py-2 border-r border-gray-50 whitespace-nowrap">{row.coDriver || <span className="text-gray-300">—</span>}</td>
