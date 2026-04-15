@@ -185,6 +185,7 @@ const UserModal = ({
   mode: 'add' | 'edit';
   initialData?: any;
 }) => {
+  const { t } = useI18n();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -214,7 +215,6 @@ const UserModal = ({
   }, [isOpen, initialData]);
 
   const getPasswordStrength = (password: string) => {
-    const { t } = useI18n();
     if (!password) return { level: 0, text: t('passwordStrengthNone'), color: 'bg-gray-200' };
     let score = 0;
     if (password.length >= 6) score += 1;
@@ -756,6 +756,7 @@ export const RoleManagement = ({ title }: PageProps) => {
   const handleConfirm = async () => {
     const normalizedName = formData.name.trim();
     const normalizedKey = formData.key.trim().toLowerCase();
+    const roleKeyPattern = /^[a-z][a-z0-9:_-]{2,49}$/;
 
     if (!normalizedName || !normalizedKey) {
       alert(t('roleName') + ' & ' + t('roleKey'));
@@ -767,8 +768,8 @@ export const RoleManagement = ({ title }: PageProps) => {
       return;
     }
 
-    if (!/^[a-z][a-z0-9:_-]{2,49}$/.test(normalizedKey)) {
-      alert(t('roleKey') + ' invalid, example: sys:admin, workflow:approver');
+    if (!roleKeyPattern.test(normalizedKey)) {
+      alert(t('roleKeyInvalid'));
       return;
     }
 
@@ -793,7 +794,8 @@ export const RoleManagement = ({ title }: PageProps) => {
       await loadRoles();
     } catch (error) {
       console.error(t('roleSaveFailed') + ':', error);
-      alert(t('roleSaveFailedDuplicate'));
+      const status = (error as any)?.response?.status;
+      alert(status === 409 ? t('roleSaveFailedDuplicate') : t('roleSaveFailed'));
     }
   };
 
@@ -1152,6 +1154,47 @@ export const MenuManagement = ({ title }: PageProps) => {
   const [editingMenu, setEditingMenu] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [menus, setMenus] = useState<any[]>([]);
+  const [formData, setFormData] = useState({ name: '', permission: '', component: '', sort: 1 });
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
+
+  // 应用功能列表映射：权限标识和组件路径
+  const appFunctions = [
+    { id: 'apps-hr-travel', label: '出差申请', permission: 'app:hr:travel', component: 'apps/hr/travel' },
+    { id: 'apps-hr-leave', label: '请假申请', permission: 'app:hr:leave', component: 'apps/hr/leave' },
+    { id: 'apps-hr-training', label: '培训申请', permission: 'app:hr:training', component: 'apps/hr/training' },
+    { id: 'apps-hr-stamp', label: '用印申请', permission: 'app:hr:stamp', component: 'apps/hr/stamp' },
+    { id: 'apps-finance-reimbursement', label: '报销申请', permission: 'app:finance:reimbursement', component: 'apps/finance/reimbursement' },
+    { id: 'apps-finance-payment', label: '付款申请', permission: 'app:finance:payment', component: 'apps/finance/payment' },
+    { id: 'apps-finance-invoice', label: '发票申请', permission: 'app:finance:invoice', component: 'apps/finance/invoice' },
+    { id: 'apps-supply-procurement', label: '采购申请', permission: 'app:supply:procurement', component: 'apps/supply/procurement' },
+    { id: 'apps-supply-requisition', label: '领用申请', permission: 'app:supply:requisition', component: 'apps/supply/requisition' },
+    { id: 'approvals', label: '流程待办', permission: 'sys:approvals', component: 'system/approvals' },
+    { id: 'chat', label: '在线沟通', permission: 'sys:chat', component: 'system/chat' },
+    { id: 'contacts', label: '通讯录', permission: 'sys:contacts', component: 'system/contacts' },
+    { id: 'reports', label: '报表中心', permission: 'sys:reports', component: 'system/reports' },
+  ];
+
+  const handleAppToggle = (appId: string) => {
+    const nextSelectedApps = selectedApps.includes(appId)
+      ? selectedApps.filter((id) => id !== appId)
+      : [...selectedApps, appId];
+
+    setSelectedApps(nextSelectedApps);
+
+    if (nextSelectedApps.length === 0) {
+      return;
+    }
+
+    const selectedMappings = appFunctions.filter((app) => nextSelectedApps.includes(app.id));
+    const mergedPermissions = selectedMappings.map((app) => app.permission).join(',');
+    const mergedComponents = selectedMappings.map((app) => app.component).join(',');
+
+    setFormData((prev) => ({
+      ...prev,
+      permission: mergedPermissions,
+      component: mergedComponents,
+    }));
+  };
 
   const loadMenus = async () => {
     try {
@@ -1166,46 +1209,68 @@ export const MenuManagement = ({ title }: PageProps) => {
     loadMenus();
   }, []);
 
-  const handleAdd = async () => {
-    const name = window.prompt(t('promptEnterMenuName'));
-    if (!name) return;
-    const permission = window.prompt(t('promptEnterPermission'), 'system:menu:list') || '';
-    const component = window.prompt(t('promptEnterComponent'), 'system/menu/index') || '';
-    const sortValue = window.prompt(t('promptEnterSort'), '1') || '1';
-
-    try {
-      await systemConfigService.createMenu({
-        name,
-        permission,
-        component,
-        sort: Number(sortValue) || 1,
-        status: true,
-      });
-      await loadMenus();
-    } catch (error) {
-      console.error(t('menuAddFailed') + ':', error);
-      alert(t('menuAddFailed'));
-    }
+  const handleAdd = () => {
+    setEditingMenu(null);
+    setFormData({ name: '', permission: 'system:menu:list', component: 'system/menu/index', sort: 1 });
+    setSelectedApps([]);
+    setIsModalOpen(true);
   };
 
-  const handleEdit = async (menu: any) => {
-    const name = window.prompt(t('promptEnterMenuName'), menu.name);
-    if (!name) return;
-    const permission = window.prompt(t('promptEnterPermission'), menu.permission) || menu.permission;
-    const component = window.prompt(t('promptEnterComponent'), menu.component) || menu.component;
-    const sortValue = window.prompt(t('promptEnterSort'), String(menu.sort)) || String(menu.sort);
+  const handleEdit = (menu: any) => {
+    setEditingMenu(menu);
+    setFormData({
+      name: menu.name || '',
+      permission: menu.permission || '',
+      component: menu.component || '',
+      sort: menu.sort || 1,
+    });
+    const permissionTokens = String(menu.permission || '')
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+    const matchedIds = appFunctions
+      .filter((app) => permissionTokens.includes(app.permission))
+      .map((app) => app.id);
+    setSelectedApps(matchedIds);
+    setIsModalOpen(true);
+  };
+
+  const handleModalSubmit = async () => {
+    if (!formData.name.trim()) {
+      alert(t('promptEnterMenuName'));
+      return;
+    }
+    if (!formData.permission.trim()) {
+      alert(t('promptEnterPermission'));
+      return;
+    }
+    if (!formData.component.trim()) {
+      alert(t('promptEnterComponent'));
+      return;
+    }
 
     try {
-      await systemConfigService.updateMenu(menu.id, {
-        name,
-        permission,
-        component,
-        sort: Number(sortValue) || menu.sort,
-      });
+      if (editingMenu) {
+        await systemConfigService.updateMenu(editingMenu.id, {
+          name: formData.name,
+          permission: formData.permission,
+          component: formData.component,
+          sort: Number(formData.sort) || 1,
+        });
+      } else {
+        await systemConfigService.createMenu({
+          name: formData.name,
+          permission: formData.permission,
+          component: formData.component,
+          sort: Number(formData.sort) || 1,
+          status: true,
+        });
+      }
+      setIsModalOpen(false);
       await loadMenus();
     } catch (error) {
-      console.error(t('menuEditFailed') + ':', error);
-      alert(t('menuEditFailed'));
+      console.error(editingMenu ? t('menuEditFailed') : t('menuAddFailed'), error);
+      alert(editingMenu ? t('menuEditFailed') : t('menuAddFailed'));
     }
   };
 
@@ -1337,27 +1402,80 @@ export const MenuManagement = ({ title }: PageProps) => {
           </table>
         </div>
       </div>
-      {/* Menu Modal Mock */}
+      {/* Menu Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-xl font-bold text-gray-900">{editingMenu ? t('menuEditTitle') : t('menuAddTitle')}</h3>
               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-8 space-y-4">
+            <div className="p-8 space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">{t('menuName')}</label>
-                <input type="text" defaultValue={editingMenu?.name} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder={t('menuNamePlaceholder')} />
+                <label className="text-sm font-semibold text-gray-700">关联应用功能（可多选）</label>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 grid grid-cols-2 gap-2 max-h-52 overflow-y-auto">
+                  {appFunctions.map((app) => (
+                    <label key={app.id} className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={selectedApps.includes(app.id)}
+                        onChange={() => handleAppToggle(app.id)}
+                        className="rounded border-gray-300"
+                      />
+                      <span>{app.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400">可勾选多个功能，权限标识与组件路径会自动合并为逗号分隔。</p>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">{t('componentPath')}</label>
-                <input type="text" defaultValue={editingMenu?.component} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" placeholder={t('menuComponentPlaceholder')} />
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">{t('menuName')}</label>
+                  <input 
+                    type="text" 
+                    value={formData.name} 
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" 
+                    placeholder={t('menuNamePlaceholder')} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">{t('permissionIdentifier')}</label>
+                  <input 
+                    type="text" 
+                    value={formData.permission} 
+                    onChange={(e) => setFormData({...formData, permission: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" 
+                    placeholder="system:menu:list"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">{t('componentPath')}</label>
+                  <input 
+                    type="text" 
+                    value={formData.component} 
+                    onChange={(e) => setFormData({...formData, component: e.target.value})}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" 
+                    placeholder="system/menu/index"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">{t('sort')}</label>
+                  <input 
+                    type="number" 
+                    value={formData.sort} 
+                    onChange={(e) => setFormData({...formData, sort: parseInt(e.target.value) || 1})}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20" 
+                    placeholder="1"
+                  />
+                </div>
               </div>
             </div>
             <div className="px-8 py-6 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl font-semibold hover:bg-gray-50">{t('cancel')}</button>
-              <button onClick={() => { alert(t('saveSuccess')); setIsModalOpen(false); }} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100">{t('confirm')}</button>
+              <button onClick={handleModalSubmit} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 shadow-lg shadow-blue-100">{t('confirm')}</button>
             </div>
           </motion.div>
         </div>
